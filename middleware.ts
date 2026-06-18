@@ -14,7 +14,13 @@ export async function middleware(request: NextRequest) {
 
   // En el deployment de admin, la raíz va directo al panel admin
   if (pathname === '/') {
-    if (process.env.SITE_MODE === 'admin') {
+    const host = request.headers.get('host') ?? ''
+    const isAdminSite = host.includes('admin') || process.env.SITE_MODE === 'admin'
+    if (isAdminSite) {
+      const adminAuth = request.cookies.get('admin_auth')?.value
+      if (adminAuth && adminAuth === process.env.ADMIN_SECRET) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }
     const congId = request.cookies.get('congregation_id')?.value

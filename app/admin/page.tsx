@@ -1,0 +1,185 @@
+"use client"
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Shield, Plus, Power, Copy, Check, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { useToast } from '@/hooks/use-toast'
+
+type TokenRow = {
+  id: string
+  token: string
+  congregation_name: string
+  active: boolean
+  created_at: string
+}
+
+function generateToken(name: string): string {
+  const slug = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 20)
+  const rand = Math.random().toString(36).slice(2, 9)
+  return `cong_${slug}_${rand}`
+}
+
+export default function AdminPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [tokens, setTokens] = useState<TokenRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [newName, setNewName] = useState('')
+  const [newToken, setNewToken] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+
+  async function load() {
+    const res = await fetch('/api/admin/tokens')
+    if (res.status === 401) { router.push('/admin/login'); return }
+    const data = await res.json()
+    setTokens(data.tokens ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  function handleNameChange(name: string) {
+    setNewName(name)
+    setNewToken(generateToken(name))
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newName.trim() || !newToken.trim()) return
+    setCreating(true)
+    const res = await fetch('/api/admin/tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ congregation_name: newName.trim(), token: newToken.trim() }),
+    })
+    if (res.ok) {
+      setNewName('')
+      setNewToken('')
+      await load()
+      toast({ title: 'Congregación creada' })
+    } else {
+      const d = await res.json()
+      toast({ title: 'Error', description: d.error, variant: 'destructive' })
+    }
+    setCreating(false)
+  }
+
+  async function handleToggle(id: string, active: boolean) {
+    await fetch(`/api/admin/tokens/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: !active }),
+    })
+    await load()
+    toast({ title: active ? 'Token desactivado' : 'Token activado' })
+  }
+
+  async function handleCopy(token: string) {
+    await navigator.clipboard.writeText(token)
+    setCopied(token)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/admin/login')
+    router.refresh()
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="flex items-center gap-3 mb-8">
+        <Shield className="h-6 w-6 text-amber-500 shrink-0" />
+        <h1 className="text-xl font-bold flex-1 min-w-0">Panel de administración</h1>
+        <Button variant="outline" size="sm" onClick={handleLogout}>Salir</Button>
+      </div>
+
+      {/* Crear nueva congregación */}
+      <Card className="mb-8 border-amber-800/40 bg-amber-950/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base text-amber-400">Nueva congregación</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Nombre de la congregación</Label>
+                <Input
+                  placeholder="Ej: Congregación Norte"
+                  value={newName}
+                  onChange={e => handleNameChange(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Token generado</Label>
+                <Input
+                  placeholder="cong_xxx_xxxxx"
+                  value={newToken}
+                  onChange={e => setNewToken(e.target.value)}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+            <Button type="submit" disabled={creating || !newName.trim() || !newToken.trim()}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Crear congregación
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Lista de congregaciones */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          Congregaciones ({tokens.length})
+        </h2>
+
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : tokens.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">No hay congregaciones registradas</p>
+        ) : (
+          tokens.map(t => (
+            <Card key={t.id}>
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium">{t.congregation_name}</span>
+                    <Badge variant="outline" className={t.active ? 'text-green-400 border-green-700' : 'text-muted-foreground'}>
+                      {t.active ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <code className="text-xs text-muted-foreground font-mono">{t.token}</code>
+                    <button onClick={() => handleCopy(t.token)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      {copied === t.token
+                        ? <Check className="h-3 w-3 text-green-500" />
+                        : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleToggle(t.id, t.active)}
+                  className={t.active ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'}
+                >
+                  <Power className="h-4 w-4" />
+                  {t.active ? 'Desactivar' : 'Activar'}
+                </Button>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}

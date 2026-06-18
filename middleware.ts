@@ -12,8 +12,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Si ya tiene sesión y va al login, redirigir al inicio
+  // En el deployment de admin, la raíz va directo al panel admin
   if (pathname === '/') {
+    if (process.env.SITE_MODE === 'admin') {
+      return NextResponse.redirect(new URL('/admin/login', request.url))
+    }
     const congId = request.cookies.get('congregation_id')?.value
     const token = request.cookies.get('congregation_token')?.value
     if (congId && token) {

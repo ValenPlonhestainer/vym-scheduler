@@ -181,8 +181,8 @@ export async function getAllAsignacionesConFecha(): Promise<Array<Asignacion & {
     .select('*, semanas!inner(fecha)')
     .eq('congregation_id', congId)
   return (data ?? []).map(r => ({
-    ...dbToAsignacion(r as Record<string, unknown>),
-    fecha: (r.semanas as { fecha: string } | null)?.fecha ?? '',
+    ...dbToAsignacion(r as unknown as Record<string, unknown>),
+    fecha: (r.semanas as unknown as { fecha: string } | null)?.fecha ?? '',
   }))
 }
 
@@ -216,7 +216,7 @@ export async function getAsignacionesHermano(
   return (data ?? [])
     .filter(r => r.semanas)
     .map(r => ({
-      semana: dbToSemana(r.semanas as Record<string, unknown>),
+      semana: dbToSemana(r.semanas as unknown as Record<string, unknown>),
       parte: r.parte as ParteTipo,
     }))
 }
@@ -313,8 +313,8 @@ export async function getAllAsignacionesFDSConFecha(): Promise<Array<AsignacionF
     .select('*, semanas_fds!inner(fecha)')
     .eq('congregation_id', congId)
   return (data ?? []).map(r => ({
-    ...dbToAsignacionFDS(r as Record<string, unknown>),
-    fecha: (r.semanas_fds as { fecha: string } | null)?.fecha ?? '',
+    ...dbToAsignacionFDS(r as unknown as Record<string, unknown>),
+    fecha: (r.semanas_fds as unknown as { fecha: string } | null)?.fecha ?? '',
   }))
 }
 

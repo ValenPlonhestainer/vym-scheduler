@@ -21,6 +21,7 @@ interface Props {
   open: boolean
   onOpenChange: (v: boolean) => void
   hermano: Hermano | null
+  hermanos: Hermano[]
   onSaved: () => void
 }
 
@@ -59,12 +60,14 @@ const defaultForm = (): Omit<Hermano, 'id'> => ({
   privilegios: getPrivilegiosDefecto('publicador'),
 })
 
-export function HermanoDialog({ open, onOpenChange, hermano, onSaved }: Props) {
+export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }: Props) {
   const [form, setForm] = useState(defaultForm())
+  const [nombreError, setNombreError] = useState('')
   const { toast } = useToast()
 
   useEffect(() => {
     if (open) {
+      setNombreError('')
       setForm(hermano
         ? {
             nombre: hermano.nombre,
@@ -107,6 +110,15 @@ export function HermanoDialog({ open, onOpenChange, hermano, onSaved }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nombre.trim()) return
+    const nombreNorm = form.nombre.trim().toLowerCase()
+    const duplicado = hermanos.find(h =>
+      h.nombre.trim().toLowerCase() === nombreNorm && h.id !== hermano?.id
+    )
+    if (duplicado) {
+      setNombreError(`Ya existe un hermano con ese nombre: "${duplicado.nombre}"`)
+      return
+    }
+    setNombreError('')
     const data: Hermano = { id: hermano?.id ?? generateId(), ...form }
     await saveHermano(data)
     toast({ title: hermano ? 'Hermano actualizado' : 'Hermano agregado', description: data.nombre })
@@ -145,10 +157,14 @@ export function HermanoDialog({ open, onOpenChange, hermano, onSaved }: Props) {
             <Input
               id="nombre"
               value={form.nombre}
-              onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
+              onChange={e => { setForm(f => ({ ...f, nombre: e.target.value })); setNombreError('') }}
               placeholder="Ej: Juan García"
               required
+              className={nombreError ? 'border-red-500 focus-visible:ring-red-500' : ''}
             />
+            {nombreError && (
+              <p className="text-xs text-red-500">{nombreError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

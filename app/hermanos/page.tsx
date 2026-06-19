@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, User, ChevronDown, ChevronUp, History } from 'lucide-react'
+import { Plus, Pencil, Trash2, User, ChevronDown, ChevronUp, History, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { HermanoDialog } from '@/components/hermanos/hermano-dialog'
 import { HermanoHistorial } from '@/components/hermanos/hermano-historial'
 import { getHermanos, deleteHermano } from '@/lib/actions'
@@ -20,6 +21,7 @@ export default function HermanosPage() {
   const [editingHermano, setEditingHermano] = useState<Hermano | null>(null)
   const [historialHermano, setHistorialHermano] = useState<Hermano | null>(null)
   const [mostrarInactivos, setMostrarInactivos] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
   const { toast } = useToast()
 
   function load() {
@@ -52,6 +54,10 @@ export default function HermanosPage() {
     setDialogOpen(false)
   }
 
+  const busquedaNorm = busqueda.trim().toLowerCase()
+  const filtrar = (list: Hermano[]) =>
+    busquedaNorm ? list.filter(h => h.nombre.toLowerCase().includes(busquedaNorm)) : list
+
   const activos = hermanos.filter(h => h.activo)
   const inactivos = hermanos.filter(h => !h.activo)
 
@@ -61,11 +67,13 @@ export default function HermanosPage() {
     return g
   }
 
-  const activosByRol = groupByRol(activos)
+  const activosByRol = groupByRol(filtrar(activos))
+  const inactivosFiltrados = filtrar(inactivos)
+  const hayResultados = ROL_ORDER.some(r => activosByRol[r].length > 0) || (mostrarInactivos && inactivosFiltrados.length > 0)
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Hermanos</h1>
           <p className="text-muted-foreground text-sm mt-0.5">{activos.length} activos · {inactivos.length} inactivos</p>
@@ -76,12 +84,39 @@ export default function HermanosPage() {
         </Button>
       </div>
 
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Buscar hermano..."
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {busqueda && (
+          <button
+            onClick={() => setBusqueda('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {hermanos.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <User className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="font-medium">No hay hermanos cargados</p>
             <p className="text-sm">Agregá el primero con el botón de arriba</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {hermanos.length > 0 && busquedaNorm && !hayResultados && (
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            <Search className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p className="font-medium">Sin resultados para "{busqueda}"</p>
           </CardContent>
         </Card>
       )}
@@ -118,7 +153,7 @@ export default function HermanosPage() {
           </button>
           {mostrarInactivos && (
             <div className="space-y-2 opacity-60">
-              {inactivos.map(h => (
+              {inactivosFiltrados.map(h => (
                 <HermanoRow
                   key={h.id}
                   hermano={h}
@@ -127,6 +162,9 @@ export default function HermanosPage() {
                   onHistorial={() => setHistorialHermano(h)}
                 />
               ))}
+              {inactivosFiltrados.length === 0 && busquedaNorm && (
+                <p className="text-sm text-muted-foreground text-center py-2">Sin inactivos que coincidan</p>
+              )}
             </div>
           )}
         </div>
@@ -136,6 +174,7 @@ export default function HermanosPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         hermano={editingHermano}
+        hermanos={hermanos}
         onSaved={handleSaved}
       />
 

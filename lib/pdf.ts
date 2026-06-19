@@ -16,13 +16,44 @@ function dateRange(fecha: string): string {
   return `${mStart} ${day} - ${mEnd} ${end.getDate()}`
 }
 
-function encontrarFDSParaSemana(semanaFecha: string, semanasFDS: SemanaFDS[]): SemanaFDS | undefined {
-  const inicio = new Date(semanaFecha).getTime()
-  const fin = inicio + 6 * 86_400_000
-  return semanasFDS.find(fds => {
-    const t = new Date(fds.fecha).getTime()
-    return t >= inicio && t <= fin
+function semanaLunes(fecha: string): number {
+  const d = new Date(fecha + 'T12:00:00Z')
+  const dow = d.getUTCDay()
+  const toMonday = dow === 0 ? 6 : dow - 1
+  const monday = new Date(d.getTime() - toMonday * 86_400_000)
+  monday.setUTCHours(0, 0, 0, 0)
+  return monday.getTime()
+}
+
+function fdsDeSemana(semanaFecha: string, semanasFDS: SemanaFDS[]): SemanaFDS[] {
+  const weekStart = semanaLunes(semanaFecha)
+  const weekEnd = weekStart + 6 * 86_400_000 + 86_399_999
+  return semanasFDS.filter(fds => {
+    const t = new Date(fds.fecha + 'T12:00:00Z').getTime()
+    return t >= weekStart && t <= weekEnd
   })
+}
+
+function encontrarFDSParaSemana(semanaFecha: string, semanasFDS: SemanaFDS[]): SemanaFDS | undefined {
+  return fdsDeSemana(semanaFecha, semanasFDS)
+    .sort((a, b) => {
+      const score = (f: SemanaFDS) =>
+        [f.tituloArticulo, f.oradorNombre, f.disertacionTitulo, f.oradorCongregacion].filter(Boolean).length
+      return score(b) - score(a)
+    })[0]
+}
+
+function asigsFDSSemana(
+  semanaFecha: string,
+  semanasFDS: SemanaFDS[],
+  todasAsigs: AsignacionFDS[]
+): Record<string, string> {
+  const ids = fdsDeSemana(semanaFecha, semanasFDS).map(f => f.id)
+  const map: Record<string, string> = {}
+  for (const a of todasAsigs) {
+    if (ids.includes(a.semanaFDSId)) map[a.parte] = a.hermanoId
+  }
+  return map
 }
 
 export function generarPDFMensual(
@@ -126,20 +157,21 @@ export function generarPDFMensual(
     y += lineH
   }
 
+  let primeraSemana = true
   for (const semana of semanas) {
     const asigsSemana = todasAsignaciones.filter(a => a.semanaId === semana.id)
     const asigMap: Partial<Record<ParteTipo, string>> = {}
     for (const a of asigsSemana) asigMap[a.parte] = a.hermanoId
 
     const fds = encontrarFDSParaSemana(semana.fecha, semanasFDS)
-    const asigsFDSMap: Record<string, string> = {}
-    if (fds) {
-      for (const a of todasAsignacionesFDS.filter(a => a.semanaFDSId === fds.id)) {
-        asigsFDSMap[a.parte] = a.hermanoId
-      }
-    }
+    const asigsFDSMap = asigsFDSSemana(semana.fecha, semanasFDS, todasAsignacionesFDS)
 
-    checkPage(80)
+    if (primeraSemana) {
+      primeraSemana = false
+    } else {
+      doc.addPage()
+      y = 12
+    }
 
     // ── Encabezado de semana ──
     const range = dateRange(semana.fecha)
@@ -397,6 +429,104 @@ export function generarPDFMensual(
       if (fds.cancionIntermedia) cancionRow('Canción intermedia', fds.cancionIntermedia)
       if (fds.cancionCierre)     cancionRow('Canción de cierre',  fds.cancionCierre)
     }
+
+    y += 8
+  }
+
+  // FDS meetings without a matching weekday semana (one representative per week)
+  const fdsHuerfanas = (() => {
+    const seen = new Map<number, SemanaFDS>()
+    for (const fds of semanasFDS) {
+      const key = semanaLunes(fds.fecha)
+      if (!semanas.some(s => semanaLunes(s.fecha) === key) && !seen.has(key)) {
+        seen.set(key, fds)
+      }
+    }
+    return [...seen.values()]
+  })()
+
+  for (const fds of fdsHuerfanas) {
+    const asigsFDSMap = asigsFDSSemana(fds.fecha, semanasFDS, todasAsignacionesFDS)
+
+    doc.addPage()
+    y = 12
+
+    doc.setFontSize(8.5)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    doc.text('RESUMEN SEMANAL', mL + 2, y)
+    const [, fm, fd] = fds.fecha.split('-').map(Number)
+    const fdsDateLabel = `${MONTHS[fm - 1]} ${fd}`
+    doc.setTextColor(180, 30, 30)
+    doc.text(fdsDateLabel, pageW / 2, y, { align: 'center' })
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(80, 80, 80)
+    doc.text(congregacion, pageW - mR, y, { align: 'right' })
+    y += 3
+    doc.setDrawColor(160, 160, 160)
+    doc.line(mL, y, pageW - mR, y)
+    y += 3.5
+
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(120, 120, 120)
+    doc.text('REUNIÓN DE FIN DE SEMANA', mL + 2, y)
+    doc.setTextColor(0, 0, 0)
+    y += 8
+
+    sectionBar('Apertura', 60, 40, 100)
+    multiCol([['Presidente', nombre(asigsFDSMap['fds_presidente'])]])
+    multiCol([['Oración de apertura', nombre(asigsFDSMap['fds_oracion_apertura'])]])
+
+    sectionBar('Disertación pública', 133, 100, 4)
+    const disertLabel = fds.boceto
+      ? bocetoPDFLabel(fds.boceto)
+      : fds.disertacionTitulo ?? ''
+    if (disertLabel) {
+      checkPage(ROW_H + 1)
+      doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(10, 10, 10)
+      const lines = doc.splitTextToSize(disertLabel, cW - 4)
+      for (let i = 0; i < lines.length; i++) doc.text(lines[i], mL + 3, y + i * LINE_H)
+      doc.setTextColor(0, 0, 0)
+      y += Math.max(lines.length * LINE_H, ROW_H)
+    }
+    const oradorInfo: string[] = []
+    if (fds.oradorNombre) oradorInfo.push(fds.oradorNombre)
+    if (fds.oradorCongregacion) oradorInfo.push(`(${fds.oradorCongregacion})`)
+    if (oradorInfo.length > 0) {
+      checkPage(ROW_H)
+      doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(10, 10, 10)
+      doc.text('Orador: ', mL + 3, y)
+      const labelW = doc.getTextWidth('Orador: ')
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(90, 90, 90)
+      doc.text(oradorInfo.join(' '), mL + 3 + labelW, y)
+      doc.setTextColor(0, 0, 0)
+      y += ROW_H
+    }
+
+    sectionBar('Estudio de La Atalaya', 20, 50, 120)
+    if (fds.tituloArticulo) {
+      checkPage(ROW_H + 1)
+      doc.setFontSize(8.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(10, 10, 10)
+      const lines = doc.splitTextToSize(fds.tituloArticulo, cW - 4)
+      for (let i = 0; i < lines.length; i++) doc.text(lines[i], mL + 3, y + i * LINE_H)
+      doc.setTextColor(0, 0, 0)
+      y += Math.max(lines.length * LINE_H, ROW_H)
+    }
+    const fdsLector = nombre(asigsFDSMap['fds_lector'])
+    if (fdsLector) multiCol([['Lector', fdsLector]])
+    const fdsOrCi = nombre(asigsFDSMap['fds_oracion_cierre'])
+    if (fdsOrCi) multiCol([['Oración de cierre', fdsOrCi]])
+    if (fds.cancionApertura)   cancionRow('Canción apertura',   fds.cancionApertura)
+    if (fds.cancionIntermedia) cancionRow('Canción intermedia', fds.cancionIntermedia)
+    if (fds.cancionCierre)     cancionRow('Canción de cierre',  fds.cancionCierre)
 
     y += 8
   }

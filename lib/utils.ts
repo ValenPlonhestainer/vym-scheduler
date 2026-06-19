@@ -44,10 +44,10 @@ export const ROL_LABELS: Record<Rol, string> = {
 }
 
 export const ROL_COLORS: Record<Rol, string> = {
-  anciano: 'bg-blue-900/50 text-blue-300 border-blue-700/50',
-  siervo: 'bg-green-900/50 text-green-300 border-green-700/50',
-  publicador: 'bg-slate-700/50 text-slate-300 border-slate-600/50',
-  hermana: 'bg-purple-900/50 text-purple-300 border-purple-700/50',
+  anciano:    'badge-anciano',
+  siervo:     'badge-siervo',
+  publicador: 'badge-publicador',
+  hermana:    'badge-hermana',
 }
 
 export function getPrivilegiosDefecto(rol: Rol): Privilegios {

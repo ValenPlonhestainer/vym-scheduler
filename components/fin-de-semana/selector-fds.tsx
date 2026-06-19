@@ -1,9 +1,17 @@
 "use client"
 
+import { useState } from 'react'
+import { ChevronDown, AlertCircle, X } from 'lucide-react'
 import { Hermano, ParteTipoFDS, AsignacionFDS } from '@/lib/types'
-import { ROL_LABELS, formatFechaCorta, hermanosElegiblesParaParteFDS } from '@/lib/utils'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertCircle } from 'lucide-react'
+import { hermanosElegiblesParaParteFDS, formatFechaCorta, cn } from '@/lib/utils'
+import { PanelSelectorHermano } from '@/components/programar/panel-selector-hermano'
+
+const PARTE_LABELS: Record<ParteTipoFDS, string> = {
+  fds_presidente:       'Presidente',
+  fds_oracion_apertura: 'Oración de apertura',
+  fds_oracion_cierre:   'Oración de cierre',
+  fds_lector:           'Lector de La Atalaya',
+}
 
 interface Props {
   parte: ParteTipoFDS
@@ -20,6 +28,8 @@ export function SelectorFDS({
   parte, hermanos, value, onChange, semanaFDSId,
   disabled, todasAsignaciones = [], asigsSemana = {},
 }: Props) {
+  const [open, setOpen] = useState(false)
+
   const elegibles = hermanosElegiblesParaParteFDS(hermanos, parte)
 
   function getUltima(hermanoId: string): string | null {
@@ -36,46 +46,65 @@ export function SelectorFDS({
   }
 
   const selectedYaAsignado =
-    !!value &&
-    Object.entries(asigsSemana).some(([p, hId]) => hId === value && p !== parte)
+    !!value && Object.entries(asigsSemana).some(([p, hId]) => hId === value && p !== parte)
+
+  const selectedHermano = hermanos.find(h => h.id === value)
+
+  const items = elegibles.map(hermano => ({
+    hermano,
+    ultima: getUltima(hermano.id),
+    yaAsignado: isYaAsignado(hermano.id),
+  }))
 
   return (
-    <div className="flex items-center gap-2 w-full">
-      <Select value={value || ''} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger className="flex-1 text-sm">
-          <SelectValue placeholder="— Sin asignar —" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="">— Sin asignar —</SelectItem>
-          {elegibles.map(hermano => {
-            const ultima = getUltima(hermano.id)
-            const yaAsignado = isYaAsignado(hermano.id)
-            return (
-              <SelectItem
-                key={hermano.id}
-                value={hermano.id}
-                className={yaAsignado ? 'text-orange-600' : ''}
+    <>
+      <div className="flex items-center gap-2 w-full">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className={cn(
+            'flex-1 flex items-center justify-between gap-2 px-3 py-1.5 h-9 rounded-md border text-sm transition-colors text-left',
+            disabled
+              ? 'opacity-50 cursor-not-allowed bg-muted border-border'
+              : 'bg-background border-input hover:bg-muted/50 cursor-pointer',
+            selectedYaAsignado && 'border-orange-400'
+          )}
+        >
+          <span className={cn(
+            'truncate',
+            selectedHermano ? 'text-foreground' : 'text-muted-foreground'
+          )}>
+            {selectedHermano ? selectedHermano.nombre : '— Sin asignar —'}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            {value && !disabled && (
+              <span
+                role="button"
+                onClick={e => { e.stopPropagation(); onChange('') }}
+                className="text-muted-foreground hover:text-foreground p-0.5 rounded"
               >
-                <span className="flex items-center gap-1.5">
-                  {yaAsignado && <AlertCircle className="h-3 w-3 text-orange-500 inline shrink-0" />}
-                  {hermano.nombre}
-                  <span className="text-xs text-gray-400 ml-1">
-                    ({ROL_LABELS[hermano.rol].split(' ')[0]})
-                  </span>
-                  {ultima && (
-                    <span className="text-xs text-gray-400 ml-1">· última: {formatFechaCorta(ultima)}</span>
-                  )}
-                </span>
-              </SelectItem>
-            )
-          })}
-        </SelectContent>
-      </Select>
-      {selectedYaAsignado && (
-        <span title="Este hermano ya tiene otra asignación en esta reunión">
-          <AlertCircle className="h-4 w-4 text-orange-500 shrink-0" />
-        </span>
-      )}
-    </div>
+                <X className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+        </button>
+        {selectedYaAsignado && (
+          <span title="Este hermano ya tiene otra asignación en esta reunión">
+            <AlertCircle className="h-4 w-4 text-orange-500 shrink-0" />
+          </span>
+        )}
+      </div>
+
+      <PanelSelectorHermano
+        open={open}
+        onClose={() => setOpen(false)}
+        titulo={PARTE_LABELS[parte] ?? parte}
+        items={items}
+        selectedId={value}
+        onSelect={onChange}
+      />
+    </>
   )
 }

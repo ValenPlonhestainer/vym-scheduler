@@ -21,13 +21,45 @@ import { generarPDFMensual } from '@/lib/pdf'
 
 const SECCIONES_ORDEN = ['apertura', 'tesoros', 'maestros', 'cristiana', 'cierre']
 
-function encontrarFDSParaSemana(semanaFecha: string, semanasFDS: SemanaFDS[]): SemanaFDS | undefined {
-  const inicio = new Date(semanaFecha).getTime()
-  const fin = inicio + 6 * 86_400_000
-  return semanasFDS.find(fds => {
-    const t = new Date(fds.fecha).getTime()
-    return t >= inicio && t <= fin
+function semanaLunes(fecha: string): number {
+  const d = new Date(fecha + 'T12:00:00Z')
+  const dow = d.getUTCDay()
+  const toMonday = dow === 0 ? 6 : dow - 1
+  const monday = new Date(d.getTime() - toMonday * 86_400_000)
+  monday.setUTCHours(0, 0, 0, 0)
+  return monday.getTime()
+}
+
+function fdsDeSemana(semanaFecha: string, semanasFDS: SemanaFDS[]): SemanaFDS[] {
+  const weekStart = semanaLunes(semanaFecha)
+  const weekEnd = weekStart + 6 * 86_400_000 + 86_399_999
+  return semanasFDS.filter(fds => {
+    const t = new Date(fds.fecha + 'T12:00:00Z').getTime()
+    return t >= weekStart && t <= weekEnd
   })
+}
+
+function encontrarFDSParaSemana(semanaFecha: string, semanasFDS: SemanaFDS[]): SemanaFDS | undefined {
+  // Prefer the FDS with more data filled in
+  return fdsDeSemana(semanaFecha, semanasFDS)
+    .sort((a, b) => {
+      const score = (f: SemanaFDS) =>
+        [f.tituloArticulo, f.oradorNombre, f.disertacionTitulo, f.oradorCongregacion].filter(Boolean).length
+      return score(b) - score(a)
+    })[0]
+}
+
+function asignacionesFDSSemana(
+  semanaFecha: string,
+  semanasFDS: SemanaFDS[],
+  todasAsigs: AsignacionFDS[]
+): Record<string, string> {
+  const ids = fdsDeSemana(semanaFecha, semanasFDS).map(f => f.id)
+  const map: Record<string, string> = {}
+  for (const a of todasAsigs) {
+    if (ids.includes(a.semanaFDSId)) map[a.parte] = a.hermanoId
+  }
+  return map
 }
 
 export default function ExportarPage() {
@@ -50,13 +82,25 @@ export default function ExportarPage() {
   useEffect(() => { load() }, [])
 
   const grupos = agruparSemanasPorMes(semanas)
-  const meses = Object.keys(grupos).sort().reverse()
+  const gruposFDS = agruparSemanasPorMes(semanasFDS)
+  const meses = [...new Set([...Object.keys(grupos), ...Object.keys(gruposFDS)])].sort().reverse()
 
   useEffect(() => {
     if (meses.length > 0 && !mesSeleccionado) setMesSeleccionado(meses[0])
   }, [meses.join(',')])
 
   const semanasMes = mesSeleccionado ? (grupos[mesSeleccionado] ?? []) : []
+  // One representative FDS per ISO week (for display), all assignments merged separately
+  const fdsSemanasDelMes = mesSeleccionado ? (gruposFDS[mesSeleccionado] ?? []) : []
+  const fdsHuerfanasPorSemana = (() => {
+    const seen = new Map<number, SemanaFDS>()
+    for (const fds of fdsSemanasDelMes) {
+      const key = semanaLunes(fds.fecha)
+      const tieneContraparte = semanasMes.some(s => semanaLunes(s.fecha) === key)
+      if (!tieneContraparte && !seen.has(key)) seen.set(key, fds)
+    }
+    return [...seen.values()]
+  })()
 
   function getMesLabel(key: string): string {
     const [year, month] = key.split('-')
@@ -120,7 +164,7 @@ export default function ExportarPage() {
         </Select>
       </div>
 
-      {semanasMes.length === 0 && (
+      {semanasMes.length === 0 && fdsHuerfanasPorSemana.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Eye className="h-10 w-10 mx-auto mb-2 opacity-40" />
@@ -131,7 +175,7 @@ export default function ExportarPage() {
 
       {/* Vista previa imprimible */}
       <div id="print-area" className="space-y-6">
-        {semanasMes.length > 0 && (
+        {(semanasMes.length > 0 || fdsHuerfanasPorSemana.length > 0) && (
           <div className="text-center mb-2 border-b border-border pb-4">
             <h2 className="text-xl font-bold text-foreground">{congregacion}</h2>
             <p className="text-muted-foreground">Programa Vida y Ministerio — {getMesLabel(mesSeleccionado)}</p>
@@ -151,9 +195,7 @@ export default function ExportarPage() {
           }
 
           const fds = encontrarFDSParaSemana(semana.fecha, semanasFDS)
-          const asigsFDS = fds ? asignacionesFDS.filter(a => a.semanaFDSId === fds.id) : []
-          const asigsFDSMap: Record<string, string> = {}
-          for (const a of asigsFDS) asigsFDSMap[a.parte] = a.hermanoId
+          const asigsFDSMap = asignacionesFDSSemana(semana.fecha, semanasFDS, asignacionesFDS)
 
           return (
             <Card key={semana.id} className="overflow-hidden">
@@ -314,6 +356,79 @@ export default function ExportarPage() {
                     </div>
                   )}
                 </>
+              )}
+            </Card>
+          )
+        })}
+
+        {/* FDS meetings without a matching weekday semana */}
+        {fdsHuerfanasPorSemana.map(fds => {
+          const asigsFDSMap = asignacionesFDSSemana(fds.fecha, semanasFDS, asignacionesFDS)
+          return (
+            <Card key={fds.id} className="overflow-hidden">
+              <div className="bg-purple-700 text-white px-4 py-2.5">
+                <h3 className="font-bold text-sm">Reunión fin de semana · {formatFechaCorta(fds.fecha)}</h3>
+              </div>
+              <div className="px-4 py-1 bg-card border-b border-border">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Apertura</p>
+              </div>
+              {fds.cancionApertura && (
+                <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
+                  <span className="text-muted-foreground">Canción de apertura</span>
+                  <span className="font-medium text-foreground">#{fds.cancionApertura}</span>
+                </div>
+              )}
+              {(['fds_presidente', 'fds_oracion_apertura'] as const).map(parte => (
+                <div key={parte} className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
+                  <span className="text-muted-foreground text-xs">{parte === 'fds_presidente' ? 'Presidente' : 'Oración de apertura'}</span>
+                  <span className={`font-semibold text-xs shrink-0 ${asigsFDSMap[parte] ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                    {asigsFDSMap[parte] ? nombreHermano(asigsFDSMap[parte]) : '—'}
+                  </span>
+                </div>
+              ))}
+              <div className="px-4 py-1 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40">
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">Disertación pública</p>
+              </div>
+              {fds.disertacionTitulo && (
+                <div className="px-4 py-1.5 border-b border-border text-sm text-foreground italic">{fds.disertacionTitulo}</div>
+              )}
+              {(fds.oradorNombre || fds.oradorCongregacion) && (
+                <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
+                  <span className="text-muted-foreground text-xs">Orador</span>
+                  <span className="font-semibold text-xs text-foreground">
+                    {fds.oradorNombre}{fds.oradorCongregacion ? ` (${fds.oradorCongregacion})` : ''}
+                  </span>
+                </div>
+              )}
+              <div className="px-4 py-1 bg-blue-50 border-b border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40">
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Estudio de La Atalaya</p>
+              </div>
+              {fds.cancionIntermedia && (
+                <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
+                  <span className="text-muted-foreground">Canción intermedia</span>
+                  <span className="font-medium text-foreground">#{fds.cancionIntermedia}</span>
+                </div>
+              )}
+              {fds.tituloArticulo && (
+                <div className="px-4 py-1.5 border-b border-border text-sm text-foreground italic">{fds.tituloArticulo}</div>
+              )}
+              <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
+                <span className="text-muted-foreground text-xs">Lector</span>
+                <span className={`font-semibold text-xs shrink-0 ${asigsFDSMap['fds_lector'] ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                  {asigsFDSMap['fds_lector'] ? nombreHermano(asigsFDSMap['fds_lector']) : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
+                <span className="text-muted-foreground text-xs">Oración de cierre</span>
+                <span className={`font-semibold text-xs shrink-0 ${asigsFDSMap['fds_oracion_cierre'] ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                  {asigsFDSMap['fds_oracion_cierre'] ? nombreHermano(asigsFDSMap['fds_oracion_cierre']) : '—'}
+                </span>
+              </div>
+              {fds.cancionCierre && (
+                <div className="flex justify-between px-4 py-1.5 text-sm">
+                  <span className="text-muted-foreground">Canción de cierre</span>
+                  <span className="font-medium text-foreground">#{fds.cancionCierre}</span>
+                </div>
               )}
             </Card>
           )

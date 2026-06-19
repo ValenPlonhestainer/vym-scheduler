@@ -258,7 +258,7 @@ export default function SemanaDetailPage() {
                     {needsTitulo && !isAyudante && (
                       <Input
                         placeholder="Título de la parte..."
-                        className={`text-sm h-8 ${seccion === 'maestros' ? 'text-green-700 bg-green-50 border-green-300 dark:text-green-300 dark:bg-green-950/40 dark:border-green-700/50' : ''}`}
+                        className={`text-sm h-8 ${seccion === 'maestros' ? 'text-green-700 bg-green-50 border-green-300 placeholder:text-gray-400 dark:text-green-300 dark:bg-green-950/40 dark:border-green-700/50 dark:placeholder:text-gray-500' : ''}`}
                         value={(semana.titulos ?? {})[parte] ?? ''}
                         onChange={e => setTitulo(parte, e.target.value)}
                       />

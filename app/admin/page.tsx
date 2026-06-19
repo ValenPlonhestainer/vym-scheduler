@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X } from 'lucide-react'
+import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
+import { useTheme } from '@/components/theme-provider'
 
 type TokenRow = {
   id: string
@@ -28,6 +29,7 @@ function generateToken(name: string): string {
 export default function AdminPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { theme, toggle } = useTheme()
   const [tokens, setTokens] = useState<TokenRow[]>([])
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
@@ -149,6 +151,9 @@ export default function AdminPage() {
       <div className="flex items-center gap-3 mb-8">
         <Shield className="h-6 w-6 text-amber-500 shrink-0" />
         <h1 className="text-xl font-bold flex-1 min-w-0">Panel de administración</h1>
+        <Button variant="outline" size="icon" onClick={toggle} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
         <Button variant="outline" size="sm" onClick={handleLogout}>Salir</Button>
       </div>
 

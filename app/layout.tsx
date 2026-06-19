@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/toaster'
 import { Navigation } from '@/components/navigation'
 import { LayoutWrapper } from '@/components/layout-wrapper'
+import { ThemeProvider } from '@/components/theme-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -14,11 +15,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className="dark">
+    <html lang="es">
+      <head>
+        {/* Evita flash al cargar — lee localStorage antes de que React hidrate */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark');})();` }} />
+      </head>
       <body className={inter.className}>
-        <Navigation />
-        <LayoutWrapper>{children}</LayoutWrapper>
-        <Toaster />
+        <ThemeProvider>
+          <Navigation />
+          <LayoutWrapper>{children}</LayoutWrapper>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

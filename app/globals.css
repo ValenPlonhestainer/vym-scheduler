@@ -58,6 +58,11 @@
   }
 }
 
+/* Force gray placeholder regardless of input text color */
+.input-gray-placeholder::placeholder {
+  color: #9ca3af !important;
+}
+
 /* Make native date picker calendar icon visible in dark mode */
 .dark input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) brightness(0.8);

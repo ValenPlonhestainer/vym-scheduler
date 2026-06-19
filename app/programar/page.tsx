@@ -274,18 +274,40 @@ export default function ProgramarPage() {
       : (semana.titulos as Record<string, string>)?.estudiante_3 ? 3
       : 2)
 
+  const seccionIconos: Partial<Record<string, JSX.Element>> = {
+    tesoros: (
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" className="h-4 w-4 shrink-0" aria-hidden="true">
+        <path d="M4 8h12M4 8 7 2h6l3 6M4 8l6 10 6-10M7 2l3 6 3-6" />
+      </svg>
+    ),
+    maestros: (
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0" aria-hidden="true">
+        <path d="M10 18v-7" />
+        <path d="M10 15c-1-3.5-4-4.5-6.5-4 0.5 3 2.5 5 6.5 4z" />
+        <path d="M10 12c1-3 4-4 6.5-3-0.5 3-2.5 4.5-6.5 3z" />
+      </svg>
+    ),
+    cristiana: (
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0" aria-hidden="true">
+        <path d="M3 12c0-3 2-5 5-5s5 2 5 5-2 4-5 4-5-1-5-4z" />
+        <circle cx="14.5" cy="10.5" r="2.5" />
+        <path d="M5 16v2.5M8 16v2.5M10 16v2.5M13 15.5v2.5" />
+      </svg>
+    ),
+  }
+
   const colorMap: Record<string, string> = {
     apertura: 'bg-card border-border',
-    tesoros: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40',
-    maestros: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/40',
-    cristiana: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40',
+    tesoros: 'bg-[#3c7f8b]/35 border-[#3c7f8b]/60 dark:bg-[#3c7f8b]/15 dark:border-[#3c7f8b]/30',
+    maestros: 'bg-[#d68f00]/35 border-[#d68f00]/60 dark:bg-[#d68f00]/15 dark:border-[#d68f00]/30',
+    cristiana: 'bg-[#bf2f13]/35 border-[#bf2f13]/60 dark:bg-[#bf2f13]/15 dark:border-[#bf2f13]/30',
     cierre: 'bg-card border-border',
   }
   const titleColorMap: Record<string, string> = {
     apertura: 'text-muted-foreground',
-    tesoros: 'text-amber-600 dark:text-amber-400',
-    maestros: 'text-green-600 dark:text-green-400',
-    cristiana: 'text-blue-600 dark:text-blue-400',
+    tesoros: 'text-[#3c7f8b] dark:text-[#6abac8]',
+    maestros: 'text-[#d68f00] dark:text-[#f0b030]',
+    cristiana: 'text-[#bf2f13] dark:text-[#e05c3a]',
     cierre: 'text-muted-foreground',
   }
 
@@ -410,7 +432,8 @@ export default function ProgramarPage() {
               <Card key={seccion} className={`mb-4 border ${colorMap[seccion]}`}>
                 <CardHeader className="pb-2 pt-4">
                   <div className="flex items-center justify-between">
-                    <CardTitle className={`text-sm font-bold uppercase tracking-wide ${titleColorMap[seccion]}`}>
+                    <CardTitle className={`text-sm font-bold uppercase tracking-wide flex items-center gap-1.5 ${titleColorMap[seccion]}`}>
+                      {seccionIconos[seccion]}
                       {SECCION_LABELS[seccion]}
                     </CardTitle>
                     {seccion === 'maestros' && (
@@ -449,7 +472,7 @@ export default function ProgramarPage() {
                           <div className="relative">
                             <Input
                               placeholder="Título de la parte…"
-                              className={`text-sm h-8 ${seccion === 'maestros' ? 'text-green-700 bg-green-50 border-green-300 input-gray-placeholder dark:text-green-300 dark:bg-green-950/40 dark:border-green-700/50' : titulo ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/50' : ''}`}
+                              className={`text-sm h-8 ${titulo ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/50' : ''}`}
                               value={titulo}
                               onChange={e => setTitulo(parte, e.target.value)}
                             />

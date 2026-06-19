@@ -18,6 +18,7 @@ type TokenRow = {
   congregation_name: string
   active: boolean
   created_at: string
+  license_duration_days: number
 }
 
 function generateToken(name: string): string {
@@ -41,6 +42,14 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Edición de días de licencia
+  const [editingDiasId, setEditingDiasId] = useState<string | null>(null)
+  const [editingDias, setEditingDias] = useState<number>(30)
+  const [savingDias, setSavingDias] = useState(false)
+
+  // Días por defecto para nuevas congregaciones
+  const [newDias, setNewDias] = useState<number>(30)
 
   // Confirmación de borrado
   const [deleteTarget, setDeleteTarget] = useState<TokenRow | null>(null)
@@ -68,7 +77,7 @@ export default function AdminPage() {
     const res = await fetch('/api/admin/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ congregation_name: newName.trim(), token: newToken.trim() }),
+      body: JSON.stringify({ congregation_name: newName.trim(), token: newToken.trim(), license_duration_days: newDias }),
     })
     if (res.ok) {
       setNewName('')
@@ -142,6 +151,25 @@ export default function AdminPage() {
     setDeleting(false)
   }
 
+  async function handleSaveDias(id: string) {
+    if (editingDias < 1) return
+    setSavingDias(true)
+    const res = await fetch(`/api/admin/tokens/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ license_duration_days: editingDias }),
+    })
+    if (res.ok) {
+      await load()
+      setEditingDiasId(null)
+      toast({ title: 'Días de licencia actualizados' })
+    } else {
+      const d = await res.json()
+      toast({ title: 'Error', description: d.error, variant: 'destructive' })
+    }
+    setSavingDias(false)
+  }
+
   async function handleLogout() {
     window.location.href = '/api/auth/logout'
   }
@@ -180,6 +208,16 @@ export default function AdminPage() {
                   value={newToken}
                   onChange={e => setNewToken(e.target.value)}
                   className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Días de licencia</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="30"
+                  value={newDias}
+                  onChange={e => setNewDias(Math.max(1, Number(e.target.value)))}
                 />
               </div>
             </div>
@@ -231,6 +269,34 @@ export default function AdminPage() {
                         <Badge variant="outline" className={t.active ? 'text-green-400 border-green-700' : 'text-muted-foreground'}>
                           {t.active ? 'Activo' : 'Inactivo'}
                         </Badge>
+                        {editingDiasId === t.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={editingDias}
+                              onChange={e => setEditingDias(Math.max(1, Number(e.target.value)))}
+                              className="h-6 w-16 text-xs px-1"
+                              onKeyDown={e => { if (e.key === 'Enter') handleSaveDias(t.id); if (e.key === 'Escape') setEditingDiasId(null) }}
+                              autoFocus
+                            />
+                            <span className="text-xs text-muted-foreground">días</span>
+                            <Button size="sm" className="h-6 text-xs px-2" onClick={() => handleSaveDias(t.id)} disabled={savingDias}>
+                              {savingDias ? <Loader2 className="h-3 w-3 animate-spin" /> : 'OK'}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setEditingDiasId(null)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingDiasId(t.id); setEditingDias(t.license_duration_days ?? 30) }}
+                            className="text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded px-1.5 py-0.5 transition-colors"
+                            title="Editar días de licencia offline"
+                          >
+                            {t.license_duration_days ?? 30}d offline
+                          </button>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <code className="text-xs text-muted-foreground font-mono">{t.token}</code>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'">
+  <title>Activación — VyM Scheduler</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .logo {
+      font-size: 28px;
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 28px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 14px;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #3b82f6; }
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 11px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover:not(:disabled) { background: #2563eb; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #7f1d1d33;
+      border: 1px solid #ef444455;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #fca5a5;
+      display: none;
+    }
+    .hint {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">VyM Scheduler</div>
+    <div class="subtitle">Activación de licencia</div>
+
+    <label for="token">Token de congregación</label>
+    <input
+      id="token"
+      type="text"
+      placeholder="cong_xxxxx_xxxxxxx"
+      autocomplete="off"
+      spellcheck="false"
+    />
+
+    <button id="btn" type="button">Activar</button>
+
+    <div class="error" id="error"></div>
+
+    <p class="hint">
+      Necesitás conexión a internet la primera vez o cuando la licencia expira.<br>
+      Una vez activado, podés usar el programa sin internet.
+    </p>
+  </div>
+
+  <script>
+    const btn = document.getElementById('btn')
+    const tokenInput = document.getElementById('token')
+    const errorDiv = document.getElementById('error')
+
+    window.electronAPI.onActivationResult(function(result) {
+      btn.disabled = false
+      btn.textContent = 'Activar'
+      if (result.ok) {
+        btn.textContent = '¡Activado!'
+        btn.style.background = '#16a34a'
+        window.electronAPI.signalActivated()
+      } else {
+        errorDiv.textContent = result.error || 'No se pudo activar la licencia.'
+        errorDiv.style.display = 'block'
+      }
+    })
+
+    btn.addEventListener('click', function() {
+      const token = tokenInput.value.trim()
+      if (!token) {
+        errorDiv.textContent = 'Ingresá el token de tu congregación.'
+        errorDiv.style.display = 'block'
+        return
+      }
+      errorDiv.style.display = 'none'
+      btn.disabled = true
+      btn.textContent = 'Verificando...'
+      window.electronAPI.activateToken(token)
+    })
+
+    tokenInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') btn.click()
+    })
+  </script>
+</body>
+</html>

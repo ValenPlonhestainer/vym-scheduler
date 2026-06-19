@@ -47,42 +47,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Verifica cookies de sesión
+  // En modo desktop la validación de licencia ocurre al arrancar Electron
+  // y en /api/auth al hacer login. El middleware solo verifica que existan
+  // las cookies de sesión (Edge Runtime no puede acceder a fs/crypto).
   const congId = request.cookies.get('congregation_id')?.value
   const token = request.cookies.get('congregation_token')?.value
 
   if (!congId || !token) {
     return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  // Valida el token contra Supabase (fetch directo, no Supabase JS client)
-  try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 3000)
-
-    const res = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/tokens?token=eq.${encodeURIComponent(token)}&select=active`,
-      {
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-        signal: controller.signal,
-      }
-    )
-    clearTimeout(timeout)
-
-    if (res.ok) {
-      const data: { active: boolean }[] = await res.json()
-      if (!data.length || !data[0].active) {
-        const response = NextResponse.redirect(new URL('/', request.url))
-        response.cookies.delete('congregation_token')
-        response.cookies.delete('congregation_id')
-        return response
-      }
-    }
-  } catch {
-    // Si falla el check (timeout, red), dejamos pasar — mejor no cortar sesiones válidas
   }
 
   return NextResponse.next()

@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
-  const { active, congregation_name } = body
+  const { active, congregation_name, license_duration_days } = body
 
   if (typeof active === 'boolean') {
     const { error } = await supabase.from('tokens').update({ active }).eq('id', params.id)
@@ -30,6 +30,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Actualizar también en congregations
     const { error: ce } = await supabase.from('congregations').update({ name }).eq('token_id', params.id)
     if (ce) return NextResponse.json({ error: ce.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (typeof license_duration_days === 'number' && license_duration_days > 0) {
+    const { error } = await supabase
+      .from('tokens')
+      .update({ license_duration_days })
+      .eq('id', params.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true })
   }
 

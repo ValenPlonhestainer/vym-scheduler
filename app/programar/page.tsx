@@ -276,16 +276,16 @@ export default function ProgramarPage() {
 
   const colorMap: Record<string, string> = {
     apertura: 'bg-card border-border',
-    tesoros: 'bg-amber-950/30 border-amber-800/40',
-    maestros: 'bg-green-950/30 border-green-800/40',
-    cristiana: 'bg-blue-950/30 border-blue-800/40',
+    tesoros: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40',
+    maestros: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/40',
+    cristiana: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40',
     cierre: 'bg-card border-border',
   }
   const titleColorMap: Record<string, string> = {
     apertura: 'text-muted-foreground',
-    tesoros: 'text-amber-400',
-    maestros: 'text-green-400',
-    cristiana: 'text-blue-400',
+    tesoros: 'text-amber-600 dark:text-amber-400',
+    maestros: 'text-green-600 dark:text-green-400',
+    cristiana: 'text-blue-600 dark:text-blue-400',
     cierre: 'text-muted-foreground',
   }
 
@@ -449,7 +449,7 @@ export default function ProgramarPage() {
                           <div className="relative">
                             <Input
                               placeholder="Título de la parte…"
-                              className={`text-sm h-8 ${seccion === 'maestros' ? 'text-green-300 bg-green-950/40 border-green-700/50 placeholder:text-green-700' : titulo ? 'bg-blue-900/30 border-blue-700/50' : ''}`}
+                              className={`text-sm h-8 ${seccion === 'maestros' ? 'text-green-700 bg-green-50 border-green-300 placeholder:text-green-400 dark:text-green-300 dark:bg-green-950/40 dark:border-green-700/50 dark:placeholder:text-green-700' : titulo ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/30 dark:border-blue-700/50' : ''}`}
                               value={titulo}
                               onChange={e => setTitulo(parte, e.target.value)}
                             />
@@ -619,9 +619,9 @@ export default function ProgramarPage() {
           </Card>
 
           {/* Disertación pública */}
-          <Card className="mb-4 border bg-amber-950/30 border-amber-800/40">
+          <Card className="mb-4 border bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40">
             <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-bold uppercase tracking-wide text-amber-400">Disertación pública</CardTitle>
+              <CardTitle className="text-sm font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">Disertación pública</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
@@ -638,7 +638,7 @@ export default function ProgramarPage() {
                   </SelectContent>
                 </Select>
                 {semanaFDS.boceto && (
-                  <p className="text-xs text-amber-400">{bocetoPDFLabel(semanaFDS.boceto)}</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{bocetoPDFLabel(semanaFDS.boceto)}</p>
                 )}
               </div>
               <div className="space-y-1.5">
@@ -671,9 +671,9 @@ export default function ProgramarPage() {
           </Card>
 
           {/* Estudio de La Atalaya */}
-          <Card className="mb-4 border bg-blue-950/30 border-blue-800/40">
+          <Card className="mb-4 border bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40">
             <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-sm font-bold uppercase tracking-wide text-blue-400">Estudio de La Atalaya</CardTitle>
+              <CardTitle className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Estudio de La Atalaya</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1.5">

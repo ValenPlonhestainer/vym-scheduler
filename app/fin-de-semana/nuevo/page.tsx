@@ -214,9 +214,9 @@ export default function NuevoFinDeSemanaPage() {
       </Card>
 
       {/* Disertación pública */}
-      <Card className="mb-4 border bg-amber-950/30 border-amber-800/40">
+      <Card className="mb-4 border bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40">
         <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-bold uppercase tracking-wide text-amber-400">
+          <CardTitle className="text-sm font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             Disertación pública
           </CardTitle>
         </CardHeader>
@@ -269,9 +269,9 @@ export default function NuevoFinDeSemanaPage() {
       </Card>
 
       {/* Estudio de La Atalaya */}
-      <Card className="mb-4 border bg-blue-950/30 border-blue-800/40">
+      <Card className="mb-4 border bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40">
         <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-bold uppercase tracking-wide text-blue-400">
+          <CardTitle className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">
             Estudio de La Atalaya
           </CardTitle>
         </CardHeader>

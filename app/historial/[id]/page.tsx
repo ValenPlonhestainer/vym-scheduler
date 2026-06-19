@@ -126,16 +126,16 @@ export default function SemanaDetailPage() {
 
   const colorMap: Record<string, string> = {
     apertura: 'bg-card border-border',
-    tesoros: 'bg-amber-950/30 border-amber-800/40',
-    maestros: 'bg-green-950/30 border-green-800/40',
-    cristiana: 'bg-blue-950/30 border-blue-800/40',
+    tesoros: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40',
+    maestros: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/40',
+    cristiana: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40',
     cierre: 'bg-card border-border',
   }
   const titleColorMap: Record<string, string> = {
     apertura: 'text-muted-foreground',
-    tesoros: 'text-amber-400',
-    maestros: 'text-green-400',
-    cristiana: 'text-blue-400',
+    tesoros: 'text-amber-600 dark:text-amber-400',
+    maestros: 'text-green-600 dark:text-green-400',
+    cristiana: 'text-blue-600 dark:text-blue-400',
     cierre: 'text-muted-foreground',
   }
 
@@ -258,7 +258,7 @@ export default function SemanaDetailPage() {
                     {needsTitulo && !isAyudante && (
                       <Input
                         placeholder="Título de la parte..."
-                        className={`text-sm h-8 ${seccion === 'maestros' ? 'text-green-300 bg-green-950/40 border-green-700/50 placeholder:text-green-700' : ''}`}
+                        className={`text-sm h-8 ${seccion === 'maestros' ? 'text-green-700 bg-green-50 border-green-300 placeholder:text-green-400 dark:text-green-300 dark:bg-green-950/40 dark:border-green-700/50 dark:placeholder:text-green-700' : ''}`}
                         value={(semana.titulos ?? {})[parte] ?? ''}
                         onChange={e => setTitulo(parte, e.target.value)}
                       />

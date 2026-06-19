@@ -88,7 +88,7 @@ export default function DetalleFDSPage() {
       </div>
 
       {/* Resumen visual */}
-      <Card className="mb-6 border border-purple-800/40 bg-purple-950/20">
+      <Card className="mb-6 border bg-purple-50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800/40">
         <CardContent className="py-4 px-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
           {semana.fechaLocale && (
             <div className="col-span-2 text-purple-300 italic text-xs mb-1">{semana.fechaLocale}</div>
@@ -199,9 +199,9 @@ export default function DetalleFDSPage() {
       </Card>
 
       {/* Disertación pública */}
-      <Card className="mb-4 border bg-amber-950/30 border-amber-800/40">
+      <Card className="mb-4 border bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40">
         <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-bold uppercase tracking-wide text-amber-400">Disertación pública</CardTitle>
+          <CardTitle className="text-sm font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">Disertación pública</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
@@ -252,9 +252,9 @@ export default function DetalleFDSPage() {
       </Card>
 
       {/* Estudio de La Atalaya */}
-      <Card className="mb-4 border bg-blue-950/30 border-blue-800/40">
+      <Card className="mb-4 border bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40">
         <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-bold uppercase tracking-wide text-blue-400">Estudio de La Atalaya</CardTitle>
+          <CardTitle className="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Estudio de La Atalaya</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">

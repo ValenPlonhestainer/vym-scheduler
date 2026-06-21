@@ -245,6 +245,10 @@ export interface Semana {
   cancionCierre?: number
   numEstudiantes?: number
   titulos: Partial<Record<ParteTipo, string>>
+  microfonista1?: string
+  microfonista2?: string
+  acomodador1?: string
+  acomodador2?: string
 }
 
 export interface Asignacion {
@@ -319,6 +323,10 @@ export interface SemanaFDS {
   disertacionTitulo?: string
   oradorNombre?: string
   oradorCongregacion?: string
+  microfonista1?: string
+  microfonista2?: string
+  acomodador1?: string
+  acomodador2?: string
 }
 
 export interface AsignacionFDS {

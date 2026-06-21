@@ -1,55 +1,74 @@
+// Cargar .env.local manualmente antes de importar módulos que usan process.env
+;(function loadEnv() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs') as typeof import('fs')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const p = require('path') as typeof import('path')
+    const envPath = p.join(__dirname, '..', '..', '.env.local')
+    if (fs.existsSync(envPath)) {
+      for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+        const t = line.trim()
+        if (!t || t.startsWith('#')) continue
+        const eq = t.indexOf('=')
+        if (eq === -1) continue
+        const key = t.slice(0, eq).trim()
+        const val = t.slice(eq + 1).trim().replace(/^["']|["']$/g, '')
+        if (key && !process.env[key]) process.env[key] = val
+      }
+    }
+  } catch { /* ignorar */ }
+})()
+
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
-import { spawn, ChildProcess } from 'child_process'
+import { createServer } from 'http'
+import { parse } from 'url'
 import path from 'path'
-import net from 'net'
-import { checkLocalLicense, validateAndRenewLicense, getLicensePath } from '../lib/license'
+import fs from 'fs'
+
+console.log('[VyM] main.ts cargado, process.type:', process.type, 'electron:', process.versions.electron)
 
 const PORT = 3721
 
-let nextProcess: ChildProcess | null = null
 let mainWindow: BrowserWindow | null = null
+let isStartingUp = true
 
-function startNextServer(): void {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    VYM_USER_DATA: app.getPath('userData'),
-    PORT: String(PORT),
-    NODE_ENV: 'production' as const,
-  }
+async function startNextServer(logStream: fs.WriteStream): Promise<void> {
+  const dir = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar')
+    : path.join(__dirname, '..', '..')
 
-  const isPackaged = app.isPackaged
-  const nextBin = isPackaged
-    ? path.join(process.resourcesPath, 'node_modules', '.bin', 'next')
-    : path.join(__dirname, '..', 'node_modules', '.bin', 'next')
+  logStream.write(`\n[${new Date().toISOString()}] Iniciando Next.js (in-process)\n`)
+  logStream.write(`  dir: ${dir}\n`)
+  logStream.write(`  isPackaged: ${app.isPackaged}\n`)
 
-  const appRoot = isPackaged ? process.resourcesPath : path.join(__dirname, '..')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const nextMod: any = require('next')
+  const createNext = typeof nextMod.default === 'function' ? nextMod.default : nextMod
+  const nextApp: any = createNext({
+    dev: false,
+    dir,
+    hostname: '127.0.0.1',
+    port: PORT,
+  })
+  const handle = nextApp.getRequestHandler()
 
-  nextProcess = spawn(
-    process.platform === 'win32' ? `${nextBin}.cmd` : nextBin,
-    ['start', '--port', String(PORT)],
-    { cwd: appRoot, env, stdio: 'pipe' }
-  )
+  logStream.write(`  Preparando Next.js...\n`)
+  await nextApp.prepare()
+  logStream.write(`  Next.js preparado, levantando servidor HTTP...\n`)
 
-  nextProcess!.stdout?.on('data', (d: Buffer) => process.stdout.write(d))
-  nextProcess!.stderr?.on('data', (d: Buffer) => process.stderr.write(d))
-}
-
-function waitForServer(port: number, maxWaitMs = 60000): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const start = Date.now()
-    function tryConnect() {
-      const sock = net.connect(port, '127.0.0.1')
-      sock.on('connect', () => { sock.destroy(); resolve() })
-      sock.on('error', () => {
-        sock.destroy()
-        if (Date.now() - start > maxWaitMs) {
-          reject(new Error(`Next.js no respondió en ${maxWaitMs / 1000}s`))
-        } else {
-          setTimeout(tryConnect, 300)
-        }
+  await new Promise<void>((resolve, reject) => {
+    createServer((req, res) => {
+      handle(req, res, parse(req.url!, true))
+    })
+      .listen(PORT, '127.0.0.1', () => {
+        logStream.write(`  Servidor en http://127.0.0.1:${PORT}\n`)
+        resolve()
       })
-    }
-    tryConnect()
+      .on('error', (err: Error) => {
+        logStream.write(`  Error al levantar servidor: ${err.message}\n`)
+        reject(err)
+      })
   })
 }
 
@@ -61,6 +80,7 @@ async function createMainWindow(): Promise<void> {
     minHeight: 600,
     show: false,
     title: 'VyM Scheduler',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -70,77 +90,42 @@ async function createMainWindow(): Promise<void> {
   mainWindow.loadURL(`http://localhost:${PORT}`)
   mainWindow.once('ready-to-show', () => mainWindow!.show())
   mainWindow.on('closed', () => { mainWindow = null })
-}
-
-function createActivationWindow(): Promise<boolean> {
-  return new Promise(resolve => {
-    const win = new BrowserWindow({
-      width: 520,
-      height: 440,
-      resizable: false,
-      title: 'Activación de licencia — VyM Scheduler',
-      webPreferences: {
-        preload: path.join(__dirname, 'preload.js'),
-        contextIsolation: true,
-        nodeIntegration: false,
-      },
-    })
-
-    win.loadFile(path.join(__dirname, '..', 'electron', 'activation.html'))
-    win.on('closed', () => resolve(false))
-
-    ipcMain.once('license-activated', () => {
-      win.close()
-      resolve(true)
-    })
-
-    // Manejar intento de activación desde la ventana
-    ipcMain.on('activate-token', async (_event, token: string) => {
-      const licensePath = getLicensePath()
-      const result = await validateAndRenewLicense(token, licensePath)
-      win.webContents.send('activation-result', result)
-      if (result.ok) {
-        ipcMain.emit('license-activated')
-      }
-    })
+  mainWindow.webContents.on('before-input-event', (_e, input) => {
+    if (input.type === 'keyDown' && input.key === 'F12') {
+      mainWindow?.webContents.toggleDevTools()
+    }
   })
 }
 
 app.on('before-quit', () => {
-  nextProcess?.kill()
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const keys = ['vym_prog_semana','vym_prog_asigs','vym_prog_fds','vym_prog_asigsfds','vym_prog_tipo','vym_prog_salaaux']
+    mainWindow.webContents.executeJavaScript(
+      keys.map(k => `localStorage.removeItem('${k}')`).join(';')
+    ).catch(() => {})
+  }
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    nextProcess?.kill()
+  if (process.platform !== 'darwin' && !isStartingUp) {
     app.quit()
   }
 })
 
 app.whenReady().then(async () => {
-  // Pasar ruta de datos al proceso Next.js
   process.env.VYM_USER_DATA = app.getPath('userData')
 
-  const licensePath = getLicensePath()
-  const licStatus = checkLocalLicense(licensePath)
-
-  if (!licStatus.valid) {
-    // Mostrar ventana de activación
-    const activated = await createActivationWindow()
-    if (!activated) {
-      app.quit()
-      return
-    }
-  }
-
+  const logPath = path.join(app.getPath('userData'), 'startup.log')
+  const logStream = fs.createWriteStream(logPath, { flags: 'a' })
   try {
-    startNextServer()
-    await waitForServer(PORT)
+    await startNextServer(logStream)
     await createMainWindow()
+    isStartingUp = false
   } catch (err) {
+    logStream.write(`[fatal] ${String(err)}\n`)
     dialog.showErrorBox(
       'Error al iniciar VyM Scheduler',
-      String(err)
+      `${String(err)}\n\nRevisá el log en:\n${logPath}`
     )
     app.quit()
   }

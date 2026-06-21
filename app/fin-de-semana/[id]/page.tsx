@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectorFDS } from '@/components/fin-de-semana/selector-fds'
+import { SelectorBoceto } from '@/components/fin-de-semana/selector-boceto'
 import {
   getHermanos, getSemanaFDS, saveSemanaFDS, getAsignacionesFDS, saveAllAsignacionesFDS,
   getAllAsignacionesFDSConFecha,
@@ -16,7 +17,7 @@ import {
 import { Hermano, SemanaFDS, ParteTipoFDS, PARTES_INFO_FDS, AsignacionFDS } from '@/lib/types'
 import { formatFecha } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
-import { BOCETOS, bocetoPDFLabel } from '@/data/bocetos'
+import { bocetoPDFLabel } from '@/data/bocetos'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type Asigs = Partial<Record<ParteTipoFDS, string>>
@@ -206,21 +207,10 @@ export default function DetalleFDSPage() {
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label>Bosquejo (S-34)</Label>
-            <Select
-              value={semana.boceto?.toString() ?? ''}
-              onValueChange={v => update('boceto', v ? +v : undefined)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="— Sin bosquejo —" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {BOCETOS.map(b => (
-                  <SelectItem key={b.numero} value={b.numero.toString()}>
-                    {b.numero}. {b.titulo}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SelectorBoceto
+              value={semana.boceto}
+              onChange={v => update('boceto', v)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Título libre (opcional)</Label>
@@ -297,6 +287,40 @@ export default function DetalleFDSPage() {
               todasAsignaciones={todasAsigsFDS}
               asigsSemana={asigs}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Microfonistas y Acomodadores */}
+      <Card className="mb-4 border bg-card border-border">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Microfonistas y Acomodadores</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              ['microfonista1', 'Micrófono 1'] as const,
+              ['microfonista2', 'Micrófono 2'] as const,
+              ['acomodador1',   'Acomodador 1'] as const,
+              ['acomodador2',   'Acomodador 2'] as const,
+            ]).map(([field, label]) => (
+              <div key={field} className="space-y-1.5">
+                <Label className="text-sm">{label}</Label>
+                <Select
+                  value={semana[field] ?? ''}
+                  onValueChange={v => update(field, v || undefined)}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="— Sin asignar —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hermanos.filter(h => h.activo).map(h => (
+                      <SelectItem key={h.id} value={h.id}>{h.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -23,11 +23,15 @@ export async function middleware(request: NextRequest) {
       }
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }
+    const userId = request.cookies.get('user_id')?.value
     const congId = request.cookies.get('congregation_id')?.value
-    const token = request.cookies.get('congregation_token')?.value
-    if (congId && token) {
+    if (userId && congId) {
       return NextResponse.redirect(new URL('/inicio', request.url))
     }
+    return NextResponse.next()
+  }
+
+  if (pathname === '/registro') {
     return NextResponse.next()
   }
 
@@ -47,13 +51,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // En modo desktop la validación de licencia ocurre al arrancar Electron
-  // y en /api/auth al hacer login. El middleware solo verifica que existan
-  // las cookies de sesión (Edge Runtime no puede acceder a fs/crypto).
+  const userId = request.cookies.get('user_id')?.value
   const congId = request.cookies.get('congregation_id')?.value
-  const token = request.cookies.get('congregation_token')?.value
 
-  if (!congId || !token) {
+  if (!userId || !congId) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 

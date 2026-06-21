@@ -1,7 +1,38 @@
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'crypto'
-import { networkInterfaces, hostname } from 'os'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
+import https from 'https'
 import path from 'path'
+
+function httpsGet(url: string, headers: Record<string, string>, timeoutMs: number): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const req = https.request(
+      { hostname: parsed.hostname, path: parsed.pathname + parsed.search, method: 'GET', headers },
+      (res) => {
+        let data = ''
+        res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }))
+      }
+    )
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')) })
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+function httpsPatch(url: string, headers: Record<string, string>, body: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const req = https.request(
+      { hostname: parsed.hostname, path: parsed.pathname + parsed.search, method: 'PATCH', headers },
+      (res) => { res.resume(); res.on('end', resolve) }
+    )
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')) })
+    req.on('error', reject)
+    req.write(body)
+    req.end()
+  })
+}
 
 const APP_SALT = 'VyMScheduler-2024-salt'
 const SUPABASE_URL = process.env.SUPABASE_URL!
@@ -9,7 +40,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export interface LicensePayload {
   token: string
-  mac: string
+  machineId: string
   congregationName: string
   issuedAt: number
   expiresAt: number
@@ -19,26 +50,33 @@ export type LicenseStatus =
   | { valid: true; expiresAt: Date; congregationName: string; token: string }
   | { valid: false; reason: 'no_license' | 'expired' | 'tampered' | 'wrong_machine' }
 
-export function getLicensePath(): string {
+function sanitizeToken(token: string): string {
+  return token.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60)
+}
+
+export function getLicensePath(token?: string): string {
+  const userData = process.env['VYM_USER_DATA']
+  const base = userData ?? process.cwd()
+  const filename = token ? `${sanitizeToken(token)}.vym` : 'license.vym'
+  return path.join(base, filename)
+}
+
+// ID estable de la máquina — se genera una vez y se guarda en machine_id.txt
+// Evita el problema de MACs que cambian al desconectar la red
+function getMachineId(): string {
   const userData = process.env.VYM_USER_DATA
-  if (userData) return path.join(userData, 'license.vym')
-  return path.join(process.cwd(), 'license-dev.vym')
+  if (!userData) return 'fallback-no-userdata'
+  const idPath = path.join(userData, 'machine_id.txt')
+  try {
+    if (existsSync(idPath)) return readFileSync(idPath, 'utf8').trim()
+  } catch { /* ignorar */ }
+  const id = randomBytes(16).toString('hex')
+  try { writeFileSync(idPath, id, 'utf8') } catch { /* ignorar */ }
+  return id
 }
 
-function getMacAddress(): string {
-  const nets = networkInterfaces()
-  for (const ifaces of Object.values(nets)) {
-    for (const iface of (ifaces ?? [])) {
-      if (!iface.internal && iface.mac && iface.mac !== '00:00:00:00:00:00') {
-        return iface.mac
-      }
-    }
-  }
-  return hostname()
-}
-
-function deriveKey(mac: string): Buffer {
-  return createHash('sha256').update(`${mac}:${APP_SALT}`).digest()
+function deriveKey(machineId: string): Buffer {
+  return createHash('sha256').update(`${machineId}:${APP_SALT}`).digest()
 }
 
 export function checkLocalLicense(licensePath: string): LicenseStatus {
@@ -49,8 +87,8 @@ export function checkLocalLicense(licensePath: string): LicenseStatus {
     const [ivHex, cipherHex] = content.split(':')
     if (!ivHex || !cipherHex) return { valid: false, reason: 'tampered' }
 
-    const mac = getMacAddress()
-    const key = deriveKey(mac)
+    const machineId = getMachineId()
+    const key = deriveKey(machineId)
     const iv = Buffer.from(ivHex, 'hex')
     const ciphertext = Buffer.from(cipherHex, 'hex')
 
@@ -58,7 +96,7 @@ export function checkLocalLicense(licensePath: string): LicenseStatus {
     const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
     const payload: LicensePayload = JSON.parse(decrypted)
 
-    if (payload.mac !== mac) return { valid: false, reason: 'wrong_machine' }
+    if (payload.machineId !== machineId) return { valid: false, reason: 'wrong_machine' }
     if (Date.now() > payload.expiresAt) return { valid: false, reason: 'expired' }
 
     return {
@@ -72,11 +110,11 @@ export function checkLocalLicense(licensePath: string): LicenseStatus {
   }
 }
 
-export function saveLicense(licensePath: string, payload: Omit<LicensePayload, 'mac'>): void {
-  const mac = getMacAddress()
-  const key = deriveKey(mac)
+export function saveLicense(licensePath: string, payload: Omit<LicensePayload, 'machineId'>): void {
+  const machineId = getMachineId()
+  const key = deriveKey(machineId)
   const iv = randomBytes(16)
-  const full: LicensePayload = { ...payload, mac }
+  const full: LicensePayload = { ...payload, machineId }
   const cipher = createCipheriv('aes-256-cbc', key, iv)
   const encrypted = Buffer.concat([cipher.update(JSON.stringify(full), 'utf8'), cipher.final()])
   writeFileSync(licensePath, `${iv.toString('hex')}:${encrypted.toString('hex')}`, 'utf8')
@@ -87,20 +125,17 @@ export async function validateAndRenewLicense(
   licensePath: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/tokens?token=eq.${encodeURIComponent(token)}&select=active,congregation_name,license_duration_days`,
-      {
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-        },
-        signal: AbortSignal.timeout(8000),
-      }
-    )
+    const authHeaders = {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+    }
 
-    if (!res.ok) return { ok: false, error: 'Error al conectar con el servidor' }
+    const getUrl = `${SUPABASE_URL}/rest/v1/tokens?token=eq.${encodeURIComponent(token)}&select=active,congregation_name,license_duration_days`
+    const res = await httpsGet(getUrl, authHeaders, 8000)
 
-    const rows = await res.json() as Array<{ active: boolean; congregation_name: string; license_duration_days: number }>
+    if (res.status < 200 || res.status >= 300) return { ok: false, error: 'Error al conectar con el servidor' }
+
+    const rows = JSON.parse(res.body) as Array<{ active: boolean; congregation_name: string; license_duration_days: number }>
     if (!rows.length) return { ok: false, error: 'Token no encontrado' }
 
     const row = rows[0]
@@ -114,6 +149,10 @@ export async function validateAndRenewLicense(
       issuedAt: now,
       expiresAt: now + durationDays * 24 * 60 * 60 * 1000,
     })
+
+    const patchUrl = `${SUPABASE_URL}/rest/v1/tokens?token=eq.${encodeURIComponent(token)}`
+    const patchBody = JSON.stringify({ last_renewed_at: new Date(now).toISOString() })
+    await httpsPatch(patchUrl, { ...authHeaders, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, patchBody, 8000)
 
     return { ok: true }
   } catch (e) {

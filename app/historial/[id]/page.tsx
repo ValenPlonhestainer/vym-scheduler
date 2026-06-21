@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectorHermano } from '@/components/programar/selector-hermano'
 import { getSemana, getAsignaciones, getHermanos, saveSemana, saveAllAsignaciones, getAllAsignacionesConFecha } from '@/lib/actions'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Semana, ParteTipo, PARTES_ORDEN, PARTES_INFO, SECCION_LABELS, Hermano, Asignacion,
 } from '@/lib/types'
@@ -328,6 +329,40 @@ export default function SemanaDetailPage() {
           </Card>
         )
       })}
+
+      {/* Microfonistas y Acomodadores */}
+      <Card className="mb-4 border bg-card border-border">
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Microfonistas y Acomodadores</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              ['microfonista1', 'Micrófono 1'] as const,
+              ['microfonista2', 'Micrófono 2'] as const,
+              ['acomodador1',   'Acomodador 1'] as const,
+              ['acomodador2',   'Acomodador 2'] as const,
+            ]).map(([field, label]) => (
+              <div key={field} className="space-y-1.5">
+                <Label className="text-sm">{label}</Label>
+                <Select
+                  value={semana[field] ?? ''}
+                  onValueChange={v => setSemana(p => p ? { ...p, [field]: v || undefined } : p)}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="— Sin asignar —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hermanos.filter(h => h.activo).map(h => (
+                      <SelectItem key={h.id} value={h.id}>{h.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end mt-6">
         <Button onClick={handleGuardar} disabled={saving} size="lg">

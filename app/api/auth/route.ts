@@ -1,62 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb, ensureCongregationId, setConfigValue, getConfigValue } from '@/lib/db'
-import { checkLocalLicense, validateAndRenewLicense, getLicensePath } from '@/lib/license'
+import { getSupabase } from '@/lib/supabase'
 
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: false,
   sameSite: 'strict' as const,
   maxAge: 60 * 60 * 24 * 365 * 10,
   path: '/',
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}))
-  const token = ((body.token as string) ?? '').trim()
+  try {
+    const body = await request.json().catch(() => ({}))
+    const email = ((body.email as string) ?? '').trim().toLowerCase()
+    const password = (body.password as string) ?? ''
 
-  if (!token) {
-    return NextResponse.json({ error: 'Token requerido' }, { status: 400 })
-  }
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Correo y contraseña requeridos' }, { status: 400 })
+    }
 
-  const licensePath = getLicensePath()
-  const licStatus = checkLocalLicense(licensePath)
-  const savedToken = getConfigValue('token')
+    const sb = getSupabase()
+    const { data: authData, error: authError } = await sb.auth.signInWithPassword({ email, password })
 
-  // Si la licencia local es válida y el token coincide → sesión directa sin internet
-  if (licStatus.valid && savedToken === token) {
-    const congId = ensureCongregationId()
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: 'Correo o contraseña incorrectos' }, { status: 401 })
+    }
+
+    const userId = authData.user.id
+
+    const { data: miembro } = await sb
+      .from('congregacion_miembros')
+      .select('congregacion_id')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!miembro) {
+      return NextResponse.json({ error: 'Esta cuenta no está asociada a ninguna congregación' }, { status: 403 })
+    }
+
+    const congregacionId = miembro.congregacion_id as string
+
+    // Verificar que el token de licencia de esta congregación siga activo
+    const { data: tokenRow } = await sb
+      .from('tokens')
+      .select('active')
+      .eq('congregacion_id', congregacionId)
+      .maybeSingle()
+
+    if (tokenRow && !tokenRow.active) {
+      return NextResponse.json({ error: 'El acceso a esta congregación fue suspendido. Contactá al administrador.' }, { status: 403 })
+    }
+
     const response = NextResponse.json({ ok: true })
-    response.cookies.set('congregation_token', token, COOKIE_OPTS)
-    response.cookies.set('congregation_id', congId, COOKIE_OPTS)
+    response.cookies.set('user_id', userId, COOKIE_OPTS)
+    response.cookies.set('congregation_id', congregacionId, COOKIE_OPTS)
     return response
+  } catch (err) {
+    return NextResponse.json({ error: `Error interno: ${String(err)}` }, { status: 500 })
   }
-
-  // Licencia expirada, no existe, o token distinto → validar online y renovar
-  const renewal = await validateAndRenewLicense(token, licensePath)
-  if (!renewal.ok) {
-    const isExpired = licStatus.valid === false && licStatus.reason === 'expired'
-    const errorMsg = isExpired
-      ? `Licencia expirada. ${renewal.error ?? 'Conectate a internet para renovarla.'}`
-      : (renewal.error ?? 'Token inválido o sin conexión.')
-    return NextResponse.json({ error: errorMsg }, { status: 401 })
-  }
-
-  // Guardar token localmente para futuras sesiones offline
-  setConfigValue('token', token)
-
-  // Si cambió el nombre de congregación, actualizar config local
-  const newLicStatus = checkLocalLicense(licensePath)
-  if (newLicStatus.valid) {
-    setConfigValue('congregation_name', newLicStatus.congregationName)
-  }
-
-  const congId = ensureCongregationId()
-  const response = NextResponse.json({ ok: true })
-  response.cookies.set('congregation_token', token, COOKIE_OPTS)
-  response.cookies.set('congregation_id', congId, COOKIE_OPTS)
-
-  // Suprimir advertencia de variable no usada — getDb() se importa para trigger de init
-  void getDb
-
-  return response
 }

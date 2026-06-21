@@ -2,10 +2,8 @@
 module.exports = {
   appId: 'com.vymscheduler.app',
   productName: 'VyM Scheduler',
-
   directories: {
     output: 'dist',
-    buildResources: 'build-resources',
   },
 
   files: [
@@ -13,6 +11,7 @@ module.exports = {
     'public/**/*',
     'electron-dist/**/*',
     'package.json',
+    '.env.local',
     'node_modules/**/*',
     '!node_modules/.cache',
     '!**/*.map',
@@ -24,20 +23,24 @@ module.exports = {
   ],
 
   win: {
+    icon: 'build/icon.ico',
     target: [{ target: 'nsis', arch: ['x64'] }],
-    // Colocar build-resources/icon.ico para el ícono del instalador
   },
 
   nsis: {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
-    createDesktopShortcut: true,
+    createDesktopShortcut: false,
     createStartMenuShortcut: true,
     shortcutName: 'VyM Scheduler',
+    installerIcon: 'build/icon.ico',
+    uninstallerIcon: 'build/icon.ico',
+    include: 'build/installer.nsh',
   },
 
-  npmRebuild: true,
+  asarUnpack: [
+    'node_modules/better-sqlite3/**/*',
+  ],
 
-  // Punto de entrada del proceso principal Electron
-  main: 'electron-dist/electron/main.js',
+  npmRebuild: true,
 }

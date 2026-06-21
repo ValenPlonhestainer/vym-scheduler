@@ -133,17 +133,18 @@ export function generarPDFMensual(
     y += 5.5
   }
 
-  function multiCol(items: Array<[string, string]>, lineH = 5.5) {
+  function multiCol(items: Array<[string, string]>, lineH = 5.5, labelColor?: [number, number, number]) {
     checkPage(lineH)
     const colW = cW / items.length
     doc.setFontSize(8)
+    const lc = labelColor ?? [10, 10, 10]
 
     for (let i = 0; i < items.length; i++) {
       const [label, name] = items[i]
       if (!label) continue
       const x = mL + 3 + i * colW
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(10, 10, 10)
+      doc.setTextColor(lc[0], lc[1], lc[2])
       doc.text(label + (name ? ': ' : ''), x, y)
       if (name) {
         const labelW = doc.getTextWidth(label + ': ')
@@ -215,10 +216,6 @@ export function generarPDFMensual(
     multiCol([['Presidente', presidente]])
     multiCol([['Oración de inicio', oracionIn]])
     multiCol([['Oración final', oracionFin]])
-
-    if (semana.cancionApertura)   cancionRow('Canción apertura',   semana.cancionApertura)
-    if (semana.cancionIntermedia) cancionRow('Canción intermedia', semana.cancionIntermedia)
-    if (semana.cancionCierre)     cancionRow('Canción de cierre',  semana.cancionCierre)
 
     // Tesoros
     sectionBar('Tesoros de la Biblia', 55, 55, 55)
@@ -347,6 +344,22 @@ export function generarPDFMensual(
       y += ROW_H
     }
 
+    // Microfonistas y Acomodadores — entre semana
+    const mic1 = nombre(semana.microfonista1)
+    const mic2 = nombre(semana.microfonista2)
+    const aco1 = nombre(semana.acomodador1)
+    const aco2 = nombre(semana.acomodador2)
+    if (mic1 || mic2 || aco1 || aco2) {
+      y += LINE_H
+      checkPage(LINE_H * 2 + 4)
+      if (mic1 || mic2) {
+        multiCol([['Microfonista 1', mic1], ['Microfonista 2', mic2]], 5.5, [128, 0, 0])
+      }
+      if (aco1 || aco2) {
+        multiCol([['Acomodador 1', aco1], ['Acomodador 2', aco2]], 5.5, [128, 0, 0])
+      }
+    }
+
     // ── REUNIÓN DE FIN DE SEMANA ─────────────────────────────────
     if (fds) {
       y += 2
@@ -425,9 +438,17 @@ export function generarPDFMensual(
       const fdsOrCi = nombre(asigsFDSMap['fds_oracion_cierre'])
       if (fdsOrCi) multiCol([['Oración de cierre', fdsOrCi]])
 
-      if (fds.cancionApertura)   cancionRow('Canción apertura',   fds.cancionApertura)
-      if (fds.cancionIntermedia) cancionRow('Canción intermedia', fds.cancionIntermedia)
-      if (fds.cancionCierre)     cancionRow('Canción de cierre',  fds.cancionCierre)
+      // Microfonistas y Acomodadores — fin de semana
+      const fdsMic1 = nombre(fds.microfonista1)
+      const fdsMic2 = nombre(fds.microfonista2)
+      const fdsAco1 = nombre(fds.acomodador1)
+      const fdsAco2 = nombre(fds.acomodador2)
+      if (fdsMic1 || fdsMic2 || fdsAco1 || fdsAco2) {
+        y += LINE_H
+        checkPage(LINE_H * 2 + 4)
+        if (fdsMic1 || fdsMic2) multiCol([['Microfonista 1', fdsMic1], ['Microfonista 2', fdsMic2]], 5.5, [128, 0, 0])
+        if (fdsAco1 || fdsAco2) multiCol([['Acomodador 1', fdsAco1], ['Acomodador 2', fdsAco2]], 5.5, [128, 0, 0])
+      }
     }
 
     y += 8
@@ -524,9 +545,17 @@ export function generarPDFMensual(
     if (fdsLector) multiCol([['Lector', fdsLector]])
     const fdsOrCi = nombre(asigsFDSMap['fds_oracion_cierre'])
     if (fdsOrCi) multiCol([['Oración de cierre', fdsOrCi]])
-    if (fds.cancionApertura)   cancionRow('Canción apertura',   fds.cancionApertura)
-    if (fds.cancionIntermedia) cancionRow('Canción intermedia', fds.cancionIntermedia)
-    if (fds.cancionCierre)     cancionRow('Canción de cierre',  fds.cancionCierre)
+
+    const hMic1 = nombre(fds.microfonista1)
+    const hMic2 = nombre(fds.microfonista2)
+    const hAco1 = nombre(fds.acomodador1)
+    const hAco2 = nombre(fds.acomodador2)
+    if (hMic1 || hMic2 || hAco1 || hAco2) {
+      y += LINE_H
+      checkPage(LINE_H * 2 + 4)
+      if (hMic1 || hMic2) multiCol([['Microfonista 1', hMic1], ['Microfonista 2', hMic2]], 5.5, [128, 0, 0])
+      if (hAco1 || hAco2) multiCol([['Acomodador 1', hAco1], ['Acomodador 2', hAco2]], 5.5, [128, 0, 0])
+    }
 
     y += 8
   }

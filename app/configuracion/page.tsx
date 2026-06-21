@@ -1,19 +1,76 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Lock, Sun, Moon } from 'lucide-react'
+import { Lock, Sun, Moon, Plus, Trash2, Copy, Check, Loader2, LogOut } from 'lucide-react'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { getCongregacion } from '@/lib/actions'
 import { useTheme } from '@/components/theme-provider'
+
+interface Invitacion {
+  id: string
+  codigo: string
+  usado: boolean
+  created_at: string
+}
 
 export default function ConfiguracionPage() {
   const [congregacion, setCongregacion] = useState('')
   const { theme, toggle } = useTheme()
 
+  const [invitaciones, setInvitaciones] = useState<Invitacion[]>([])
+  const [loadingInvitaciones, setLoadingInvitaciones] = useState(true)
+  const [creandoInvitacion, setCreandoInvitacion] = useState(false)
+  const [copiado, setCopiado] = useState<string | null>(null)
+
   useEffect(() => {
     getCongregacion().then(setCongregacion)
+    cargarInvitaciones()
   }, [])
+
+  async function cargarInvitaciones() {
+    setLoadingInvitaciones(true)
+    try {
+      const res = await fetch('/api/invitaciones')
+      const data = await res.json()
+      setInvitaciones(data.invitaciones ?? [])
+    } catch { /* ignorar */ }
+    setLoadingInvitaciones(false)
+  }
+
+  async function crearInvitacion() {
+    setCreandoInvitacion(true)
+    try {
+      const res = await fetch('/api/invitaciones', { method: 'POST' })
+      if (res.ok) await cargarInvitaciones()
+    } catch { /* ignorar */ }
+    setCreandoInvitacion(false)
+  }
+
+  async function eliminarInvitacion(id: string) {
+    try {
+      await fetch('/api/invitaciones', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      await cargarInvitaciones()
+    } catch { /* ignorar */ }
+  }
+
+  async function copiarCodigo(codigo: string) {
+    try {
+      await navigator.clipboard.writeText(codigo)
+      setCopiado(codigo)
+      setTimeout(() => setCopiado(null), 2000)
+    } catch { /* ignorar */ }
+  }
+
+  async function cerrarSesion() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.href = '/'
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
@@ -38,6 +95,62 @@ export default function ConfiguracionPage() {
           </CardContent>
         </Card>
 
+        {/* Invitaciones */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Colaboradores</CardTitle>
+            <CardDescription>
+              Generá un código de invitación y compartilo con quien quieras que colabore en el programa.
+              Cada código es de un solo uso.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loadingInvitaciones ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando...
+              </div>
+            ) : invitaciones.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay códigos de invitación activos.</p>
+            ) : (
+              <div className="space-y-2">
+                {invitaciones.map(inv => (
+                  <div key={inv.id} className="flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-muted/30">
+                    <code className="flex-1 font-mono text-sm tracking-widest text-foreground">{inv.codigo}</code>
+                    <button
+                      onClick={() => copiarCodigo(inv.codigo)}
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                      title="Copiar código"
+                    >
+                      {copiado === inv.codigo
+                        ? <Check className="h-4 w-4 text-green-500" />
+                        : <Copy className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => eliminarInvitacion(inv.id)}
+                      className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={crearInvitacion}
+              disabled={creandoInvitacion}
+            >
+              {creandoInvitacion
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Plus className="h-4 w-4" />}
+              Generar código de invitación
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Apariencia */}
         <Card>
           <CardHeader>
@@ -57,11 +170,23 @@ export default function ConfiguracionPage() {
                   {theme === 'dark' ? 'Modo oscuro' : 'Modo claro'}
                 </span>
               </div>
-              {/* Toggle pill */}
               <div className={`relative w-10 h-5 rounded-full transition-colors ${theme === 'dark' ? 'bg-blue-600' : 'bg-muted-foreground/30'}`}>
                 <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
             </button>
+          </CardContent>
+        </Card>
+
+        {/* Cerrar sesión */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sesión</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" size="sm" onClick={cerrarSesion} className="text-red-500 border-red-500/30 hover:bg-red-950/20 hover:text-red-400">
+              <LogOut className="h-4 w-4" />
+              Cerrar sesión
+            </Button>
           </CardContent>
         </Card>
       </div>

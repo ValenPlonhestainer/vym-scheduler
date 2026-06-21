@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 function checkAdmin() {
   const adminAuth = cookies().get('admin_auth')?.value
@@ -9,10 +9,10 @@ function checkAdmin() {
 
 export async function GET() {
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
+  const supabase = getSupabase()
   const { data } = await supabase
     .from('tokens')
-    .select('id, token, congregation_name, active, created_at, license_duration_days, congregations(id, name)')
+    .select('id, token, congregation_name, active, created_at, license_duration_days, last_renewed_at, congregacion_id')
     .order('created_at', { ascending: false })
 
   return NextResponse.json({ tokens: data ?? [] })
@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
+  const supabase = getSupabase()
   const body = await request.json().catch(() => ({}))
   const { congregation_name, token, license_duration_days } = body
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       token: token.trim(),
       congregation_name: congregation_name.trim(),
       active: true,
-      license_duration_days: Number(license_duration_days) > 0 ? Number(license_duration_days) : 30,
+      license_duration_days: Number(license_duration_days) >= 0 ? Number(license_duration_days) : 30,
     })
     .select('id')
     .single()

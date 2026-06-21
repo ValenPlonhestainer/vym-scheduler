@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 function checkAdmin() {
   const adminAuth = cookies().get('admin_auth')?.value
@@ -9,6 +9,7 @@ function checkAdmin() {
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const supabase = getSupabase()
 
   const body = await request.json().catch(() => ({}))
   const { active, congregation_name, license_duration_days } = body
@@ -33,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ ok: true })
   }
 
-  if (typeof license_duration_days === 'number' && license_duration_days > 0) {
+  if (typeof license_duration_days === 'number' && license_duration_days >= 0) {
     const { error } = await supabase
       .from('tokens')
       .update({ license_duration_days })
@@ -47,8 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-  // Borrar token — las congregaciones y sus datos se borran en cascada (ON DELETE CASCADE)
+  const supabase = getSupabase()
   const { error } = await supabase.from('tokens').delete().eq('id', params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

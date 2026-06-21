@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X, Sun, Moon } from 'lucide-react'
+import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X, Sun, Moon, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +19,17 @@ type TokenRow = {
   active: boolean
   created_at: string
   license_duration_days: number
+  last_renewed_at: string | null
+  congregacion_id: string | null
+}
+
+function getDiasRestantes(row: TokenRow): { dias: number; texto: string; color: string } {
+  if (!row.last_renewed_at) return { dias: -1, texto: 'Sin activar', color: 'text-muted-foreground' }
+  const expira = new Date(row.last_renewed_at).getTime() + row.license_duration_days * 24 * 60 * 60 * 1000
+  const dias = Math.ceil((expira - Date.now()) / (1000 * 60 * 60 * 24))
+  if (dias <= 0) return { dias: 0, texto: 'Expirada', color: 'text-red-500' }
+  if (dias <= 5) return { dias, texto: `Expira en ${dias}d`, color: 'text-orange-400' }
+  return { dias, texto: `${dias}d restantes`, color: 'text-green-400' }
 }
 
 function generateToken(name: string): string {
@@ -152,7 +163,7 @@ export default function AdminPage() {
   }
 
   async function handleSaveDias(id: string) {
-    if (editingDias < 1) return
+    if (editingDias < 0) return
     setSavingDias(true)
     const res = await fetch(`/api/admin/tokens/${id}`, {
       method: 'PATCH',
@@ -214,10 +225,10 @@ export default function AdminPage() {
                 <Label>Días de licencia</Label>
                 <Input
                   type="number"
-                  min={1}
+                  min={0}
                   placeholder="30"
                   value={newDias}
-                  onChange={e => setNewDias(Math.max(1, Number(e.target.value)))}
+                  onChange={e => setNewDias(Math.max(0, Number(e.target.value)))}
                 />
               </div>
             </div>
@@ -269,13 +280,14 @@ export default function AdminPage() {
                         <Badge variant="outline" className={t.active ? 'text-green-400 border-green-700' : 'text-muted-foreground'}>
                           {t.active ? 'Activo' : 'Inactivo'}
                         </Badge>
+                        {(() => { const r = getDiasRestantes(t); return <span className={`text-xs ${r.color}`}>{r.texto}</span> })()}
                         {editingDiasId === t.id ? (
                           <div className="flex items-center gap-1">
                             <Input
                               type="number"
                               min={1}
                               value={editingDias}
-                              onChange={e => setEditingDias(Math.max(1, Number(e.target.value)))}
+                              onChange={e => setEditingDias(Math.max(0, Number(e.target.value)))}
                               className="h-6 w-16 text-xs px-1"
                               onKeyDown={e => { if (e.key === 'Enter') handleSaveDias(t.id); if (e.key === 'Escape') setEditingDiasId(null) }}
                               autoFocus
@@ -308,6 +320,11 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {t.congregacion_id && (
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/congregacion/${t.congregacion_id}`)} className="text-sky-500 hover:text-sky-400 px-2" title="Ver datos">
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="sm" onClick={() => startEdit(t)} className="text-muted-foreground hover:text-foreground px-2">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>

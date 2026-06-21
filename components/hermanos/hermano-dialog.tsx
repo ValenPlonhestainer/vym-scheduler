@@ -41,14 +41,12 @@ const PRIVILEGIOS_CONFIG: PrivilegioConfig[] = [
   { key: 'lectura_biblica',          label: 'Lectura de la Biblia',                        rolesVisibles: ['anciano', 'siervo', 'publicador'],                  seccion: 'semana' },
   { key: 'estudiante_conversacion',  label: 'Estudiante sala principal — conversaciones',   rolesVisibles: ['anciano', 'siervo', 'publicador', 'hermana'],       seccion: 'semana' },
   { key: 'estudiante_discurso',      label: 'Estudiante sala principal — discursos',        rolesVisibles: ['anciano', 'siervo', 'publicador'],                  seccion: 'semana', soloHombres: true },
-  { key: 'estudiante_aux_conversacion', label: 'Estudiante sala auxiliar — conversaciones', rolesVisibles: ['anciano', 'siervo', 'publicador', 'hermana'],       seccion: 'semana' },
-  { key: 'estudiante_aux_discurso',  label: 'Estudiante sala auxiliar — discursos',         rolesVisibles: ['anciano', 'siervo', 'publicador'],                  seccion: 'semana', soloHombres: true },
   { key: 'ayudante_estudiante',      label: 'Ayudante de estudiante',                       rolesVisibles: ['anciano', 'siervo', 'publicador', 'hermana'],       seccion: 'semana' },
   { key: 'partes_vida_cristiana',label: 'Partes de Nuestra Vida Cristiana',      rolesVisibles: ['anciano', 'siervo'],                               seccion: 'semana' },
   { key: 'conductor_estudio',    label: 'Conductor del Estudio Bíblico',         rolesVisibles: ['anciano', 'siervo'],                               seccion: 'semana' },
-  { key: 'lector_estudio',       label: 'Lector del Estudio Bíblico',            rolesVisibles: ['anciano', 'siervo'],                               seccion: 'semana' },
+  { key: 'lector_estudio',       label: 'Lector del Estudio Bíblico',            rolesVisibles: ['anciano', 'siervo', 'publicador'],                 seccion: 'semana' },
   { key: 'presidente_fin_semana',label: 'Presidente de la reunión',              rolesVisibles: ['anciano', 'siervo'],                               seccion: 'fds'    },
-  { key: 'lector_atalaya',       label: 'Lector de La Atalaya',                  rolesVisibles: ['anciano', 'siervo'],                               seccion: 'fds'    },
+  { key: 'lector_atalaya',       label: 'Lector de La Atalaya',                  rolesVisibles: ['anciano', 'siervo', 'publicador'],                 seccion: 'fds'    },
 ]
 
 const defaultForm = (): Omit<Hermano, 'id'> => ({

@@ -6,16 +6,18 @@ import { BookOpen, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [token, setToken] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!token.trim()) return
+    if (!email.trim() || !password) return
     setLoading(true)
     setError('')
 
@@ -23,17 +25,17 @@ export default function LoginPage() {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? 'Error al iniciar sesión')
+        setError(data.error ?? 'Correo o contraseña incorrectos')
         setLoading(false)
         return
       }
-      window.location.href = '/inicio'
+      router.push('/inicio')
     } catch {
-      setError('Error de conexión. Intente nuevamente.')
+      setError('Error de conexión. Verificá tu acceso a internet.')
       setLoading(false)
     }
   }
@@ -46,25 +48,34 @@ export default function LoginPage() {
             <BookOpen className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">VyM Scheduler</h1>
+          <p className="text-sm text-muted-foreground text-center">
+            Iniciá sesión para acceder al programa de tu congregación.
+          </p>
         </div>
-
-        <p className="text-sm text-muted-foreground text-center leading-relaxed">
-          Para acceder a los datos de su congregación, ingrese la clave token que le fue asignada.
-        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="token">Clave token</Label>
+            <Label htmlFor="email">Correo electrónico</Label>
             <Input
-              id="token"
-              type="text"
-              placeholder="cong_xxx_xxxxx"
-              value={token}
-              onChange={e => { setToken(e.target.value); setError('') }}
+              id="email"
+              type="email"
+              placeholder="usuario@ejemplo.com"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError('') }}
               autoFocus
-              autoComplete="off"
-              spellCheck={false}
-              className="font-mono"
+              autoComplete="email"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Contraseña</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Tu contraseña"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError('') }}
+              autoComplete="current-password"
             />
           </div>
 
@@ -74,11 +85,18 @@ export default function LoginPage() {
             </p>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading || !token.trim()}>
+          <Button type="submit" className="w-full" disabled={loading || !email.trim() || !password}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Ingresar
           </Button>
         </form>
+
+        <p className="text-center text-sm text-muted-foreground">
+          ¿Primera vez?{' '}
+          <Link href="/registro" className="text-primary underline underline-offset-4 hover:opacity-80">
+            Crear cuenta
+          </Link>
+        </p>
       </div>
     </div>
   )

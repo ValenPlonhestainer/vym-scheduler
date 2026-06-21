@@ -76,6 +76,7 @@ export function Navigation() {
   if (pathname === '/' || pathname.startsWith('/admin')) return null
 
   function handleLogout() {
+    ;['vym_prog_semana','vym_prog_asigs','vym_prog_fds','vym_prog_asigsfds','vym_prog_tipo','vym_prog_salaaux'].forEach(k => localStorage.removeItem(k))
     window.location.href = '/api/auth/logout'
   }
 

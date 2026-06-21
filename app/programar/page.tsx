@@ -2,19 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, CheckCircle2, AlertCircle, RefreshCw, Calendar, Sun } from 'lucide-react'
+import { Plus, Loader2, CheckCircle2, AlertCircle, RefreshCw, Calendar, Sun, FileDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectorHermano } from '@/components/programar/selector-hermano'
+import { SelectorMicrofono } from '@/components/programar/selector-microfono'
 import { SelectorFDS } from '@/components/fin-de-semana/selector-fds'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import {
   getHermanos, saveSemana, saveAllAsignaciones, saveSemanaFDS, saveAllAsignacionesFDS,
-  getAllAsignacionesConFecha, getAllAsignacionesFDSConFecha,
+  getAllAsignacionesConFecha, getAllAsignacionesFDSConFecha, getSemanas, getSemanasFDS,
 } from '@/lib/actions'
 import { Asignacion, AsignacionFDS } from '@/lib/types'
 import {
@@ -23,7 +21,8 @@ import {
 } from '@/lib/types'
 import { generateId } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
-import { BOCETOS, bocetoPDFLabel } from '@/data/bocetos'
+import { bocetoPDFLabel } from '@/data/bocetos'
+import { SelectorBoceto } from '@/components/fin-de-semana/selector-boceto'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
 type Asigs = Partial<Record<ParteTipo, string>>
@@ -63,58 +62,68 @@ export default function ProgramarPage() {
   const { toast } = useToast()
   const [hermanos, setHermanos] = useState<Hermano[]>([])
   const [saving, setSaving] = useState(false)
-  const [tipo, setTipo] = useState<TipoReunion>('semana')
+  const [tipo, setTipo] = useState<TipoReunion>(() =>
+    typeof window !== 'undefined' ? ((localStorage.getItem('vym_prog_tipo') as TipoReunion) ?? 'semana') : 'semana'
+  )
   const [todasAsigs, setTodasAsigs] = useState<Array<Asignacion & { fecha: string }>>([])
   const [todasAsigsFDS, setTodasAsigsFDS] = useState<Array<AsignacionFDS & { fecha: string }>>([])
+  const [todasSemanas, setTodasSemanas] = useState<Semana[]>([])
+  const [todasSemanasFDS, setTodasSemanasFDS] = useState<SemanaFDS[]>([])
   const [semanaSaved, setSemanaSaved] = useState(false)
   const [fdsSaved, setFdsSaved] = useState(false)
   const [incompletoOpen, setIncompletoOpen] = useState(false)
   const [incompletoMensaje, setIncompletoMensaje] = useState('')
   const [incompletoAccion, setIncompletoAccion] = useState<() => void>(() => {})
+  const [duplicadoOpen, setDuplicadoOpen] = useState(false)
+  const [duplicadoId, setDuplicadoId] = useState('')
+  const [duplicadoTipo, setDuplicadoTipo] = useState<'semana' | 'fds'>('semana')
 
 
   // ── Entre semana ──────────────────────────────────────────────
   const [epubStatus, setEpubStatus] = useState<EpubStatus>('idle')
   const [epubError, setEpubError] = useState('')
-  const [usarSalaAux, setUsarSalaAux] = useState(false)
+  const [usarSalaAux, setUsarSalaAux] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('vym_prog_salaaux') === 'true'
+  )
   const abortRef = useRef<AbortController | null>(null)
 
-  const [semana, setSemana] = useState<Partial<Semana>>({
-    id: generateId(),
-    fecha: '',
-    tema: '',
-    lecturaBiblica: '',
-    cancionApertura: undefined,
-    cancionIntermedia: undefined,
-    cancionCierre: undefined,
-    titulos: {},
+  const [semana, setSemana] = useState<Partial<Semana>>(() => {
+    if (typeof window !== 'undefined') {
+      try { const r = localStorage.getItem('vym_prog_semana'); if (r) return JSON.parse(r) } catch {}
+    }
+    return { id: generateId(), fecha: '', tema: '', lecturaBiblica: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, titulos: {}, microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
   })
-  const [asigs, setAsigs] = useState<Asigs>({})
+  const [asigs, setAsigs] = useState<Asigs>(() => {
+    if (typeof window !== 'undefined') {
+      try { const r = localStorage.getItem('vym_prog_asigs'); if (r) return JSON.parse(r) } catch {}
+    }
+    return {}
+  })
 
   // ── Fin de semana ─────────────────────────────────────────────
   const [epubFDSStatus, setEpubFDSStatus] = useState<EpubStatus>('idle')
   const [epubFDSError, setEpubFDSError] = useState('')
   const abortFDSRef = useRef<AbortController | null>(null)
 
-  const [semanaFDS, setSemanaFDS] = useState<Partial<SemanaFDS>>({
-    id: generateId(),
-    fecha: '',
-    tituloArticulo: '',
-    fechaLocale: '',
-    cancionApertura: undefined,
-    cancionIntermedia: undefined,
-    cancionCierre: undefined,
-    boceto: undefined,
-    disertacionTitulo: '',
-    oradorNombre: '',
-    oradorCongregacion: '',
+  const [semanaFDS, setSemanaFDS] = useState<Partial<SemanaFDS>>(() => {
+    if (typeof window !== 'undefined') {
+      try { const r = localStorage.getItem('vym_prog_fds'); if (r) return JSON.parse(r) } catch {}
+    }
+    return { id: generateId(), fecha: '', tituloArticulo: '', fechaLocale: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, boceto: undefined, disertacionTitulo: '', oradorNombre: '', oradorCongregacion: '', microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
   })
-  const [asigsFDS, setAsigsFDS] = useState<AsigsFDS>({})
+  const [asigsFDS, setAsigsFDS] = useState<AsigsFDS>(() => {
+    if (typeof window !== 'undefined') {
+      try { const r = localStorage.getItem('vym_prog_asigsfds'); if (r) return JSON.parse(r) } catch {}
+    }
+    return {}
+  })
 
   useEffect(() => {
     getHermanos().then(setHermanos)
     getAllAsignacionesConFecha().then(setTodasAsigs)
     getAllAsignacionesFDSConFecha().then(setTodasAsigsFDS)
+    getSemanas().then(setTodasSemanas)
+    getSemanasFDS().then(setTodasSemanasFDS)
   }, [])
 
   // Epub entre semana
@@ -190,6 +199,13 @@ export default function ProgramarPage() {
     return () => ctrl.abort()
   }, [semanaFDS.fecha])
 
+  useEffect(() => { try { localStorage.setItem('vym_prog_semana', JSON.stringify(semana)) } catch {} }, [semana])
+  useEffect(() => { try { localStorage.setItem('vym_prog_asigs', JSON.stringify(asigs)) } catch {} }, [asigs])
+  useEffect(() => { try { localStorage.setItem('vym_prog_fds', JSON.stringify(semanaFDS)) } catch {} }, [semanaFDS])
+  useEffect(() => { try { localStorage.setItem('vym_prog_asigsfds', JSON.stringify(asigsFDS)) } catch {} }, [asigsFDS])
+  useEffect(() => { try { localStorage.setItem('vym_prog_tipo', tipo) } catch {} }, [tipo])
+  useEffect(() => { try { localStorage.setItem('vym_prog_salaaux', String(usarSalaAux)) } catch {} }, [usarSalaAux])
+
   function setAsig(parte: ParteTipo, hermanoId: string) {
     setAsigs(prev => ({ ...prev, [parte]: hermanoId || undefined }))
   }
@@ -206,8 +222,18 @@ export default function ProgramarPage() {
     setTimeout(() => setSemana(p => ({ ...p, fecha: f })), 50)
   }
 
+  const lsKeys = ['vym_prog_semana','vym_prog_asigs','vym_prog_fds','vym_prog_asigsfds','vym_prog_tipo','vym_prog_salaaux']
+
   async function handleGuardarSemana() {
     if (!semana.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
+    const fechaNorm = semana.fecha.replace(/-/g, '/')
+    const existente = todasSemanas.find(s => s.id !== semana.id && s.fecha.replace(/-/g, '/') === fechaNorm)
+    if (existente) {
+      setDuplicadoId(existente.id)
+      setDuplicadoTipo('semana')
+      setDuplicadoOpen(true)
+      return
+    }
     setSaving(true)
     const s: Semana = {
       id: semana.id!,
@@ -219,6 +245,10 @@ export default function ProgramarPage() {
       cancionCierre: semana.cancionCierre,
       numEstudiantes: semana.numEstudiantes,
       titulos: semana.titulos ?? {},
+      microfonista1: semana.microfonista1,
+      microfonista2: semana.microfonista2,
+      acomodador1: semana.acomodador1,
+      acomodador2: semana.acomodador2,
     }
     await saveSemana(s)
     const asignArray = Object.entries(asigs)
@@ -227,17 +257,19 @@ export default function ProgramarPage() {
     await saveAllAsignaciones(s.id, asignArray)
     setSemanaSaved(true)
     setSaving(false)
-    if (fdsSaved) {
-      router.push('/exportar')
-    } else {
-      setIncompletoMensaje('Todavía falta programar la reunión de fin de semana.')
-      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo('fds') })
-      setIncompletoOpen(true)
-    }
+    toast({ title: 'Reunión guardada', description: 'La reunión entre semana fue guardada correctamente.' })
   }
 
   async function handleGuardarFDS() {
     if (!semanaFDS.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
+    const fechaNorm = semanaFDS.fecha.replace(/-/g, '/')
+    const existente = todasSemanasFDS.find(s => s.id !== semanaFDS.id && s.fecha.replace(/-/g, '/') === fechaNorm)
+    if (existente) {
+      setDuplicadoId(existente.id)
+      setDuplicadoTipo('fds')
+      setDuplicadoOpen(true)
+      return
+    }
     setSaving(true)
     const s: SemanaFDS = {
       id: semanaFDS.id!,
@@ -251,6 +283,10 @@ export default function ProgramarPage() {
       disertacionTitulo: semanaFDS.disertacionTitulo,
       oradorNombre: semanaFDS.oradorNombre,
       oradorCongregacion: semanaFDS.oradorCongregacion,
+      microfonista1: semanaFDS.microfonista1,
+      microfonista2: semanaFDS.microfonista2,
+      acomodador1: semanaFDS.acomodador1,
+      acomodador2: semanaFDS.acomodador2,
     }
     await saveSemanaFDS(s)
     const asignArray = Object.entries(asigsFDS)
@@ -259,13 +295,21 @@ export default function ProgramarPage() {
     await saveAllAsignacionesFDS(s.id, asignArray)
     setFdsSaved(true)
     setSaving(false)
-    if (semanaSaved) {
-      router.push('/exportar')
-    } else {
-      setIncompletoMensaje('Todavía falta programar la reunión de entre semana.')
-      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo('semana') })
+    toast({ title: 'Reunión guardada', description: 'La reunión de fin de semana fue guardada correctamente.' })
+  }
+
+  function handleExportar() {
+    const otroTieneFecha = tipo === 'semana' ? !!semanaFDS.fecha : !!semana.fecha
+    const otroGuardado = tipo === 'semana' ? fdsSaved : semanaSaved
+    if (otroTieneFecha && !otroGuardado) {
+      const reunionFaltante = tipo === 'semana' ? 'fin de semana' : 'entre semana'
+      setIncompletoMensaje(`Hay datos en la reunión de ${reunionFaltante} que todavía no fueron guardados.`)
+      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo(tipo === 'semana' ? 'fds' : 'semana') })
       setIncompletoOpen(true)
+      return
     }
+    lsKeys.forEach(k => localStorage.removeItem(k))
+    router.push('/exportar')
   }
 
   const secciones = agruparPorSeccion()
@@ -316,14 +360,25 @@ export default function ProgramarPage() {
       {/* Encabezado */}
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold text-foreground flex-1">Nueva reunión</h1>
-        <Button
-          onClick={tipo === 'semana' ? handleGuardarSemana : handleGuardarFDS}
-          disabled={saving}
-          size="sm"
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Guardar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={tipo === 'semana' ? handleGuardarSemana : handleGuardarFDS}
+            disabled={saving}
+            size="sm"
+            variant="outline"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Guardar
+          </Button>
+          <Button
+            onClick={handleExportar}
+            disabled={saving}
+            size="sm"
+          >
+            <FileDown className="h-4 w-4" />
+            Exportar PDF
+          </Button>
+        </div>
       </div>
 
       {/* Selector de tipo */}
@@ -547,8 +602,57 @@ export default function ProgramarPage() {
               </Card>
             )
           })}
+          {/* Microfonistas y Acomodadores */}
+          <Card className="mb-4 border bg-card border-border">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Microfonistas y Acomodadores</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  ['microfonista1', 'Micrófono 1'] as const,
+                  ['microfonista2', 'Micrófono 2'] as const,
+                  ['acomodador1',   'Acomodador 1'] as const,
+                  ['acomodador2',   'Acomodador 2'] as const,
+                ]).map(([field, label]) => (
+                  <div key={field} className="space-y-1.5">
+                    <Label className="text-sm">{label}</Label>
+                    <SelectorMicrofono
+                      label={label}
+                      hermanos={hermanos}
+                      value={semana[field] ?? ''}
+                      onChange={v => setSemana(p => ({ ...p, [field]: v || undefined }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
+
+      {/* ── POPUP REUNIÓN DUPLICADA ── */}
+      <Dialog open={duplicadoOpen} onOpenChange={setDuplicadoOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reunión ya existente</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Ya existe una reunión programada para esa fecha. Podés editarla en el historial.
+          </p>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDuplicadoOpen(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={() => {
+              setDuplicadoOpen(false)
+              router.push(duplicadoTipo === 'semana' ? `/historial/${duplicadoId}` : `/fin-de-semana/${duplicadoId}`)
+            }}>
+              Ir al historial
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── POPUP REUNIÓN INCOMPLETA ── */}
       <Dialog open={incompletoOpen} onOpenChange={setIncompletoOpen}>
@@ -558,7 +662,7 @@ export default function ProgramarPage() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{incompletoMensaje}</p>
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => router.push('/exportar')}>
+            <Button variant="outline" onClick={() => { lsKeys.forEach(k => localStorage.removeItem(k)); router.push('/exportar') }}>
               Ir a exportar igual
             </Button>
             <Button onClick={incompletoAccion}>
@@ -649,17 +753,10 @@ export default function ProgramarPage() {
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Bosquejo (S-34)</Label>
-                <Select
-                  value={semanaFDS.boceto?.toString() ?? ''}
-                  onValueChange={v => setSemanaFDS(p => ({ ...p, boceto: v ? +v : undefined }))}
-                >
-                  <SelectTrigger><SelectValue placeholder="— Sin bosquejo —" /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {BOCETOS.map(b => (
-                      <SelectItem key={b.numero} value={b.numero.toString()}>{b.numero}. {b.titulo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SelectorBoceto
+                  value={semanaFDS.boceto}
+                  onChange={v => setSemanaFDS(p => ({ ...p, boceto: v }))}
+                />
                 {semanaFDS.boceto && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">{bocetoPDFLabel(semanaFDS.boceto)}</p>
                 )}
@@ -746,6 +843,33 @@ export default function ProgramarPage() {
                   todasAsignaciones={todasAsigsFDS}
                   asigsSemana={asigsFDS}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Microfonistas y Acomodadores FDS */}
+          <Card className="mb-4 border bg-card border-border">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Microfonistas y Acomodadores</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  ['microfonista1', 'Micrófono 1'] as const,
+                  ['microfonista2', 'Micrófono 2'] as const,
+                  ['acomodador1',   'Acomodador 1'] as const,
+                  ['acomodador2',   'Acomodador 2'] as const,
+                ]).map(([field, label]) => (
+                  <div key={field} className="space-y-1.5">
+                    <Label className="text-sm">{label}</Label>
+                    <SelectorMicrofono
+                      label={label}
+                      hermanos={hermanos}
+                      value={semanaFDS[field] ?? ''}
+                      onChange={v => setSemanaFDS(p => ({ ...p, [field]: v || undefined }))}
+                    />
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

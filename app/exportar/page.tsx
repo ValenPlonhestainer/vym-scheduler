@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { FileDown, Printer, Eye } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { FileDown, Printer, Eye, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   getSemanas, getHermanos, getAllAsignaciones, getCongregacion,
-  getSemanasFDS, getAllAsignacionesFDS,
+  getSemanasFDS, getAllAsignacionesFDS, deleteSemana, deleteSemanaFDS,
 } from '@/lib/actions'
 import {
   Semana, PARTES_ORDEN, PARTES_INFO, SECCION_LABELS, ParteTipo,
@@ -63,6 +65,7 @@ function asignacionesFDSSemana(
 }
 
 export default function ExportarPage() {
+  const router = useRouter()
   const [semanas, setSemanas] = useState<Semana[]>([])
   const [hermanos, setHermanos] = useState<Hermano[]>([])
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
@@ -70,6 +73,9 @@ export default function ExportarPage() {
   const [asignacionesFDS, setAsignacionesFDS] = useState<AsignacionFDS[]>([])
   const [congregacion, setCongregacion] = useState('')
   const [mesSeleccionado, setMesSeleccionado] = useState('')
+  const [confirmarOpen, setConfirmarOpen] = useState(false)
+  const [eliminarId, setEliminarId] = useState('')
+  const [eliminarTipo, setEliminarTipo] = useState<'semana' | 'fds'>('semana')
 
   function load() {
     Promise.all([getSemanas(), getHermanos(), getAllAsignaciones(), getSemanasFDS(), getAllAsignacionesFDS(), getCongregacion()])
@@ -115,6 +121,19 @@ export default function ExportarPage() {
 
   function handlePrint() {
     window.print()
+  }
+
+  async function handleEliminar() {
+    if (eliminarTipo === 'semana') await deleteSemana(eliminarId)
+    else await deleteSemanaFDS(eliminarId)
+    setConfirmarOpen(false)
+    load()
+  }
+
+  function pedirConfirmarEliminar(id: string, tipo: 'semana' | 'fds') {
+    setEliminarId(id)
+    setEliminarTipo(tipo)
+    setConfirmarOpen(true)
   }
 
   const nombreHermano = (id: string) => hermanos.find(h => h.id === id)?.nombre ?? '—'
@@ -198,7 +217,16 @@ export default function ExportarPage() {
           const asigsFDSMap = asignacionesFDSSemana(semana.fecha, semanasFDS, asignacionesFDS)
 
           return (
-            <Card key={semana.id} className="overflow-hidden">
+            <div key={semana.id}>
+              <div className="no-print flex justify-end gap-1 mb-1">
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground hover:text-foreground" onClick={() => router.push(`/historial/${semana.id}`)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground hover:text-destructive" onClick={() => pedirConfirmarEliminar(semana.id, 'semana')}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            <Card className="overflow-hidden">
               {/* Encabezado semana */}
               <div className="bg-blue-700 text-white px-4 py-2.5 flex items-baseline justify-between">
                 <h3 className="font-bold text-sm capitalize">{formatFechaCorta(semana.fecha)}</h3>
@@ -275,10 +303,18 @@ export default function ExportarPage() {
               {/* Reunión de fin de semana */}
               {fds && (
                 <>
-                  <div className="px-4 py-1 bg-purple-900/30 border-t-2 border-purple-700/40 border-b border-border">
+                  <div className="px-4 py-1 bg-purple-900/30 border-t-2 border-purple-700/40 border-b border-border flex items-center justify-between">
                     <p className="text-xs font-bold uppercase tracking-wider text-purple-400">
                       Reunión de fin de semana · {formatFechaCorta(fds.fecha)}
                     </p>
+                    <div className="no-print flex gap-0.5">
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-purple-400 hover:text-purple-200" onClick={() => router.push(`/fin-de-semana/${fds.id}`)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-purple-400 hover:text-destructive" onClick={() => pedirConfirmarEliminar(fds.id, 'fds')}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Apertura FDS */}
@@ -358,6 +394,7 @@ export default function ExportarPage() {
                 </>
               )}
             </Card>
+            </div>
           )
         })}
 
@@ -365,7 +402,16 @@ export default function ExportarPage() {
         {fdsHuerfanasPorSemana.map(fds => {
           const asigsFDSMap = asignacionesFDSSemana(fds.fecha, semanasFDS, asignacionesFDS)
           return (
-            <Card key={fds.id} className="overflow-hidden">
+            <div key={fds.id}>
+              <div className="no-print flex justify-end gap-1 mb-1">
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground hover:text-foreground" onClick={() => router.push(`/fin-de-semana/${fds.id}`)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground hover:text-destructive" onClick={() => pedirConfirmarEliminar(fds.id, 'fds')}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            <Card className="overflow-hidden">
               <div className="bg-purple-700 text-white px-4 py-2.5">
                 <h3 className="font-bold text-sm">Reunión fin de semana · {formatFechaCorta(fds.fecha)}</h3>
               </div>
@@ -431,9 +477,26 @@ export default function ExportarPage() {
                 </div>
               )}
             </Card>
+            </div>
           )
         })}
       </div>
+
+      {/* ── CONFIRMAR ELIMINAR ── */}
+      <Dialog open={confirmarOpen} onOpenChange={setConfirmarOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar reunión?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta acción no se puede deshacer. Se eliminarán también todas las asignaciones de esa reunión.
+          </p>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmarOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleEliminar}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

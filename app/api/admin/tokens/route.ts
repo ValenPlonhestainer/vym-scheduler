@@ -12,7 +12,7 @@ export async function GET() {
   const supabase = getSupabase()
   const { data } = await supabase
     .from('tokens')
-    .select('id, token, congregation_name, active, created_at, license_duration_days, last_renewed_at, congregacion_id')
+    .select('id, token, congregation_name, active, created_at, congregacion_id')
     .order('created_at', { ascending: false })
 
   return NextResponse.json({ tokens: data ?? [] })
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const supabase = getSupabase()
   const body = await request.json().catch(() => ({}))
-  const { congregation_name, token, license_duration_days } = body
+  const { congregation_name, token } = body
 
   if (!congregation_name?.trim() || !token?.trim()) {
     return NextResponse.json({ error: 'congregation_name y token son requeridos' }, { status: 400 })
@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
       token: token.trim(),
       congregation_name: congregation_name.trim(),
       active: true,
-      license_duration_days: Number(license_duration_days) >= 0 ? Number(license_duration_days) : 30,
     })
     .select('id')
     .single()

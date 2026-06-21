@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { saveHermano } from '@/lib/actions'
+import { Loader2 } from 'lucide-react'
 import { Hermano, Genero, Rol, Privilegios } from '@/lib/types'
 import { getPrivilegiosDefecto, generateId } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -105,6 +106,8 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
     }))
   }
 
+  const [saving, setSaving] = useState(false)
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nombre.trim()) return
@@ -117,10 +120,17 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
       return
     }
     setNombreError('')
-    const data: Hermano = { id: hermano?.id ?? generateId(), ...form }
-    await saveHermano(data)
-    toast({ title: hermano ? 'Hermano actualizado' : 'Hermano agregado', description: data.nombre })
-    onSaved()
+    setSaving(true)
+    try {
+      const data: Hermano = { id: hermano?.id ?? generateId(), ...form }
+      await saveHermano(data)
+      toast({ title: hermano ? 'Hermano actualizado' : 'Hermano agregado', description: data.nombre })
+      onSaved()
+    } catch (err) {
+      toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const rolOptions: { value: Rol; label: string }[] = [
@@ -273,7 +283,10 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit">Guardar</Button>
+            <Button type="submit" disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Guardar
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

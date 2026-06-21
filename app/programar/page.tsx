@@ -250,14 +250,19 @@ export default function ProgramarPage() {
       acomodador1: semana.acomodador1,
       acomodador2: semana.acomodador2,
     }
-    await saveSemana(s)
-    const asignArray = Object.entries(asigs)
-      .filter(([, v]) => !!v)
-      .map(([parte, hermanoId]) => ({ parte: parte as ParteTipo, hermanoId: hermanoId! }))
-    await saveAllAsignaciones(s.id, asignArray)
-    setSemanaSaved(true)
-    setSaving(false)
-    toast({ title: 'Reunión guardada', description: 'La reunión entre semana fue guardada correctamente.' })
+    try {
+      await saveSemana(s)
+      const asignArray = Object.entries(asigs)
+        .filter(([, v]) => !!v)
+        .map(([parte, hermanoId]) => ({ parte: parte as ParteTipo, hermanoId: hermanoId! }))
+      await saveAllAsignaciones(s.id, asignArray)
+      setSemanaSaved(true)
+      toast({ title: 'Reunión guardada', description: 'La reunión entre semana fue guardada correctamente.' })
+    } catch (err) {
+      toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleGuardarFDS() {
@@ -288,14 +293,19 @@ export default function ProgramarPage() {
       acomodador1: semanaFDS.acomodador1,
       acomodador2: semanaFDS.acomodador2,
     }
-    await saveSemanaFDS(s)
-    const asignArray = Object.entries(asigsFDS)
-      .filter(([, v]) => !!v)
-      .map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
-    await saveAllAsignacionesFDS(s.id, asignArray)
-    setFdsSaved(true)
-    setSaving(false)
-    toast({ title: 'Reunión guardada', description: 'La reunión de fin de semana fue guardada correctamente.' })
+    try {
+      await saveSemanaFDS(s)
+      const asignArray = Object.entries(asigsFDS)
+        .filter(([, v]) => !!v)
+        .map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
+      await saveAllAsignacionesFDS(s.id, asignArray)
+      setFdsSaved(true)
+      toast({ title: 'Reunión guardada', description: 'La reunión de fin de semana fue guardada correctamente.' })
+    } catch (err) {
+      toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleExportar() {

@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       const response = NextResponse.json({ ok: true })
       response.cookies.set('user_id', userId, COOKIE_OPTS)
       response.cookies.set('congregation_id', congregacionId, COOKIE_OPTS)
+      response.cookies.set('user_role', 'owner', { ...COOKIE_OPTS, httpOnly: false })
       return response
 
     } else {
@@ -154,6 +155,7 @@ export async function POST(request: NextRequest) {
       const response = NextResponse.json({ ok: true })
       response.cookies.set('user_id', userId, COOKIE_OPTS)
       response.cookies.set('congregation_id', congregacionId, COOKIE_OPTS)
+      response.cookies.set('user_role', 'colaborador', { ...COOKIE_OPTS, httpOnly: false })
       return response
     }
   } catch (err) {

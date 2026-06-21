@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Users, Calendar, History, FileDown, Settings, LogOut, BookOpen, Menu } from 'lucide-react'
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
+import { Badge } from '@/components/ui/badge'
 
 const navItems = [
   { href: '/hermanos',      label: 'Hermanos',    icon: Users },
@@ -17,8 +18,28 @@ const navItems = [
   { href: '/configuracion', label: 'Configuración', icon: Settings },
 ]
 
-function NavContent({ pathname, onNavigate, onLogoutClick }: {
+function getRolFromCookie(): string | null {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.split(';').find(c => c.trim().startsWith('user_role='))
+  return match ? match.trim().split('=')[1] : null
+}
+
+function RolBadge({ rol }: { rol: string | null }) {
+  if (!rol) return null
+  const isOwner = rol === 'owner'
+  return (
+    <Badge variant="outline" className={cn(
+      'text-xs px-1.5 py-0 h-5 shrink-0',
+      isOwner ? 'text-amber-400 border-amber-700' : 'text-sky-400 border-sky-700'
+    )}>
+      {isOwner ? 'Organizador' : 'Colaborador'}
+    </Badge>
+  )
+}
+
+function NavContent({ pathname, rol, onNavigate, onLogoutClick }: {
   pathname: string
+  rol: string | null
   onNavigate?: () => void
   onLogoutClick: () => void
 }) {
@@ -30,7 +51,8 @@ function NavContent({ pathname, onNavigate, onLogoutClick }: {
         className="flex items-center gap-2 px-5 py-5 font-bold text-primary border-b border-border"
       >
         <BookOpen className="h-5 w-5 shrink-0" />
-        <span>VyM Scheduler</span>
+        <span className="flex-1">VyM Scheduler</span>
+        <RolBadge rol={rol} />
       </Link>
 
       <nav className="flex flex-col gap-1 p-3 flex-1">
@@ -72,8 +94,13 @@ export function Navigation() {
   const pathname = usePathname()
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [rol, setRol] = useState<string | null>(null)
 
-  if (pathname === '/' || pathname.startsWith('/admin')) return null
+  useEffect(() => {
+    setRol(getRolFromCookie())
+  }, [])
+
+  if (pathname === '/' || pathname.startsWith('/admin') || pathname === '/registro') return null
 
   function handleLogout() {
     ;['vym_prog_semana','vym_prog_asigs','vym_prog_fds','vym_prog_asigsfds','vym_prog_tipo','vym_prog_salaaux'].forEach(k => localStorage.removeItem(k))
@@ -86,6 +113,7 @@ export function Navigation() {
       <aside className="fixed top-0 left-0 h-full w-52 bg-card border-r border-border flex-col z-40 no-print hidden md:flex">
         <NavContent
           pathname={pathname}
+          rol={rol}
           onLogoutClick={() => setLogoutOpen(true)}
         />
       </aside>
@@ -98,16 +126,18 @@ export function Navigation() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <Link href="/inicio" className="flex items-center gap-2 font-bold text-primary">
+        <Link href="/inicio" className="flex items-center gap-2 font-bold text-primary flex-1">
           <BookOpen className="h-5 w-5 shrink-0" />
           <span>VyM Scheduler</span>
         </Link>
+        <RolBadge rol={rol} />
       </header>
 
       {/* Drawer mobile */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <NavContent
           pathname={pathname}
+          rol={rol}
           onNavigate={() => setMobileOpen(false)}
           onLogoutClick={() => { setMobileOpen(false); setLogoutOpen(true) }}
         />

@@ -15,9 +15,16 @@ interface Invitacion {
   created_at: string
 }
 
+function getRol(): string {
+  if (typeof document === 'undefined') return 'colaborador'
+  const match = document.cookie.split(';').find(c => c.trim().startsWith('user_role='))
+  return match ? match.trim().split('=')[1] : 'colaborador'
+}
+
 export default function ConfiguracionPage() {
   const [congregacion, setCongregacion] = useState('')
   const { theme, toggle } = useTheme()
+  const [rol, setRol] = useState<string>('colaborador')
 
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([])
   const [loadingInvitaciones, setLoadingInvitaciones] = useState(true)
@@ -26,6 +33,7 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     getCongregacion().then(setCongregacion)
+    setRol(getRol())
     cargarInvitaciones()
   }, [])
 
@@ -95,8 +103,8 @@ export default function ConfiguracionPage() {
           </CardContent>
         </Card>
 
-        {/* Invitaciones */}
-        <Card>
+        {/* Invitaciones — solo organizadores */}
+        {rol === 'owner' && <Card>
           <CardHeader>
             <CardTitle className="text-base">Colaboradores</CardTitle>
             <CardDescription>
@@ -149,7 +157,7 @@ export default function ConfiguracionPage() {
               Generar código de invitación
             </Button>
           </CardContent>
-        </Card>
+        </Card>}
 
         {/* Apariencia */}
         <Card>

@@ -9,6 +9,10 @@ function getCongId(): string {
   return id
 }
 
+function getUserRole(): string {
+  return cookies().get('user_role')?.value ?? 'colaborador'
+}
+
 // GET — listar invitaciones activas de la congregación
 export async function GET() {
   try {
@@ -30,6 +34,9 @@ export async function GET() {
 // POST — crear nueva invitación
 export async function POST() {
   try {
+    if (getUserRole() !== 'owner') {
+      return NextResponse.json({ error: 'Solo el organizador puede generar códigos de invitación' }, { status: 403 })
+    }
     const congId = getCongId()
     const sb = getSupabase()
     const codigo = randomBytes(4).toString('hex').toUpperCase()

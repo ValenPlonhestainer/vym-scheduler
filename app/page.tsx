@@ -33,7 +33,7 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-      router.push('/inicio')
+      window.location.href = '/inicio'
     } catch {
       setError('Error de conexión. Verificá tu acceso a internet.')
       setLoading(false)

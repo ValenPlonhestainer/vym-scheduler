@@ -58,9 +58,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El acceso a esta congregación fue suspendido. Contactá al administrador.' }, { status: 403 })
     }
 
+    const { data: miembroRol } = await sb
+      .from('congregacion_miembros')
+      .select('rol')
+      .eq('user_id', userId)
+      .maybeSingle()
+
     const response = NextResponse.json({ ok: true })
     response.cookies.set('user_id', userId, COOKIE_OPTS)
     response.cookies.set('congregation_id', congregacionId, COOKIE_OPTS)
+    response.cookies.set('user_role', (miembroRol?.rol as string) ?? 'colaborador', { ...COOKIE_OPTS, httpOnly: false })
     return response
   } catch (err) {
     return NextResponse.json({ error: `Error interno: ${String(err)}` }, { status: 500 })

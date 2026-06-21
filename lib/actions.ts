@@ -102,20 +102,25 @@ export async function getHermanos(): Promise<Hermano[]> {
   return (data ?? []).map(r => dbToHermano(r as Record<string, unknown>))
 }
 
-export async function saveHermano(hermano: Hermano): Promise<void> {
-  const congId = getCongId()
-  const sb = getSupabase()
-  const { error } = await sb.from('hermanos').upsert({
-    id: hermano.id,
-    congregacion_id: congId,
-    nombre: hermano.nombre,
-    genero: hermano.genero,
-    rol: hermano.rol,
-    activo: hermano.activo,
-    notas: hermano.notas ?? null,
-    privilegios: hermano.privilegios ?? null,
-  })
-  if (error) throw new Error(error.message)
+export async function saveHermano(hermano: Hermano): Promise<{ error?: string }> {
+  try {
+    const congId = getCongId()
+    const sb = getSupabase()
+    const { error } = await sb.from('hermanos').upsert({
+      id: hermano.id,
+      congregacion_id: congId,
+      nombre: hermano.nombre,
+      genero: hermano.genero,
+      rol: hermano.rol,
+      activo: hermano.activo,
+      notas: hermano.notas ?? null,
+      privilegios: hermano.privilegios ?? null,
+    })
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
+  }
 }
 
 export async function deleteHermano(id: string): Promise<void> {

@@ -123,9 +123,13 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
     setSaving(true)
     try {
       const data: Hermano = { id: hermano?.id ?? generateId(), ...form }
-      await saveHermano(data)
-      toast({ title: hermano ? 'Hermano actualizado' : 'Hermano agregado', description: data.nombre })
-      onSaved()
+      const result = await saveHermano(data)
+      if (result?.error) {
+        toast({ title: 'Error al guardar', description: result.error, variant: 'destructive' })
+      } else {
+        toast({ title: hermano ? 'Hermano actualizado' : 'Hermano agregado', description: data.nombre })
+        onSaved()
+      }
     } catch (err) {
       toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
     } finally {

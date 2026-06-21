@@ -87,12 +87,16 @@ export async function POST(request: NextRequest) {
       const userId = userData.user.id
 
       // Vincular usuario como owner
-      await sb.from('congregacion_miembros').insert({
+      const { error: miembroError } = await sb.from('congregacion_miembros').insert({
         user_id: userId,
         congregacion_id: congregacionId,
         rol: 'owner',
         nombre,
       })
+      if (miembroError) {
+        await sb.auth.admin.deleteUser(userId)
+        throw new Error(`Error al vincular usuario: ${miembroError.message}`)
+      }
 
       const response = NextResponse.json({ ok: true })
       response.cookies.set('user_id', userId, COOKIE_OPTS)
@@ -133,12 +137,16 @@ export async function POST(request: NextRequest) {
       const userId = userData.user.id
 
       // Vincular como colaborador
-      await sb.from('congregacion_miembros').insert({
+      const { error: miembroErrorCol } = await sb.from('congregacion_miembros').insert({
         user_id: userId,
         congregacion_id: congregacionId,
         rol: 'colaborador',
         nombre,
       })
+      if (miembroErrorCol) {
+        await sb.auth.admin.deleteUser(userId)
+        throw new Error(`Error al vincular usuario: ${miembroErrorCol.message}`)
+      }
 
       // Marcar invitación como usada
       await sb.from('invitaciones').update({ usado: true }).eq('codigo', codigo.toUpperCase())

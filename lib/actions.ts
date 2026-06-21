@@ -247,6 +247,7 @@ export async function saveAllAsignaciones(
         asignaciones.map(a => ({
           id: randomUUID(),
           semana_id: semanaId,
+          congregation_id: congId,
           parte: a.parte,
           hermano_id: a.hermanoId,
         }))
@@ -413,6 +414,7 @@ export async function saveAllAsignacionesFDS(
         asignaciones.map(a => ({
           id: randomUUID(),
           semana_fds_id: semanaFDSId,
+          congregation_id: congId,
           parte: a.parte,
           hermano_id: a.hermanoId,
         }))

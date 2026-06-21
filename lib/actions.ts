@@ -157,26 +157,31 @@ export async function getSemana(id: string): Promise<Semana | undefined> {
   return data ? dbToSemana(data as Record<string, unknown>) : undefined
 }
 
-export async function saveSemana(semana: Semana): Promise<void> {
-  const congId = getCongId()
-  const sb = getSupabase()
-  const { error } = await sb.from('semanas').upsert({
-    id: semana.id,
-    congregation_id: congId,
-    fecha: semana.fecha,
-    tema: semana.tema ?? null,
-    lectura_biblica: semana.lecturaBiblica ?? null,
-    cancion_apertura: semana.cancionApertura ?? null,
-    cancion_intermedia: semana.cancionIntermedia ?? null,
-    cancion_cierre: semana.cancionCierre ?? null,
-    num_estudiantes: semana.numEstudiantes ?? null,
-    titulos: semana.titulos ?? {},
-    microfonista_1: semana.microfonista1 ?? null,
-    microfonista_2: semana.microfonista2 ?? null,
-    acomodador_1: semana.acomodador1 ?? null,
-    acomodador_2: semana.acomodador2 ?? null,
-  })
-  if (error) throw new Error(error.message)
+export async function saveSemana(semana: Semana): Promise<{ error?: string }> {
+  try {
+    const congId = getCongId()
+    const sb = getSupabase()
+    const { error } = await sb.from('semanas').upsert({
+      id: semana.id,
+      congregation_id: congId,
+      fecha: semana.fecha,
+      tema: semana.tema ?? null,
+      lectura_biblica: semana.lecturaBiblica ?? null,
+      cancion_apertura: semana.cancionApertura ?? null,
+      cancion_intermedia: semana.cancionIntermedia ?? null,
+      cancion_cierre: semana.cancionCierre ?? null,
+      num_estudiantes: semana.numEstudiantes ?? null,
+      titulos: semana.titulos ?? {},
+      microfonista_1: semana.microfonista1 ?? null,
+      microfonista_2: semana.microfonista2 ?? null,
+      acomodador_1: semana.acomodador1 ?? null,
+      acomodador_2: semana.acomodador2 ?? null,
+    })
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
+  }
 }
 
 export async function deleteSemana(id: string): Promise<void> {
@@ -229,23 +234,28 @@ export async function getAllAsignacionesConFecha(): Promise<Array<Asignacion & {
 export async function saveAllAsignaciones(
   semanaId: string,
   asignaciones: Omit<Asignacion, 'id' | 'semanaId'>[]
-): Promise<void> {
-  const congId = getCongId()
-  const sb = getSupabase()
-  const { data: semana } = await sb
-    .from('semanas').select('id').eq('id', semanaId).eq('congregation_id', congId).maybeSingle()
-  if (!semana) throw new Error('Semana no encontrada')
-  await sb.from('asignaciones').delete().eq('semana_id', semanaId)
-  if (asignaciones.length > 0) {
-    const { error } = await sb.from('asignaciones').insert(
-      asignaciones.map(a => ({
-        id: randomUUID(),
-        semana_id: semanaId,
-        parte: a.parte,
-        hermano_id: a.hermanoId,
-      }))
-    )
-    if (error) throw new Error(error.message)
+): Promise<{ error?: string }> {
+  try {
+    const congId = getCongId()
+    const sb = getSupabase()
+    const { data: semana } = await sb
+      .from('semanas').select('id').eq('id', semanaId).eq('congregation_id', congId).maybeSingle()
+    if (!semana) return { error: 'Semana no encontrada' }
+    await sb.from('asignaciones').delete().eq('semana_id', semanaId)
+    if (asignaciones.length > 0) {
+      const { error } = await sb.from('asignaciones').insert(
+        asignaciones.map(a => ({
+          id: randomUUID(),
+          semana_id: semanaId,
+          parte: a.parte,
+          hermano_id: a.hermanoId,
+        }))
+      )
+      if (error) return { error: error.message }
+    }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
   }
 }
 
@@ -312,28 +322,33 @@ export async function getSemanaFDS(id: string): Promise<SemanaFDS | undefined> {
   return data ? dbToSemanaFDS(data as Record<string, unknown>) : undefined
 }
 
-export async function saveSemanaFDS(semana: SemanaFDS): Promise<void> {
-  const congId = getCongId()
-  const sb = getSupabase()
-  const { error } = await sb.from('semanas_fds').upsert({
-    id: semana.id,
-    congregation_id: congId,
-    fecha: semana.fecha,
-    fecha_locale: semana.fechaLocale ?? null,
-    titulo_articulo: semana.tituloArticulo ?? null,
-    cancion_apertura: semana.cancionApertura ?? null,
-    cancion_intermedia: semana.cancionIntermedia ?? null,
-    cancion_cierre: semana.cancionCierre ?? null,
-    boceto: semana.boceto ?? null,
-    disertacion_titulo: semana.disertacionTitulo ?? null,
-    orador_nombre: semana.oradorNombre ?? null,
-    orador_congregacion: semana.oradorCongregacion ?? null,
-    microfonista_1: semana.microfonista1 ?? null,
-    microfonista_2: semana.microfonista2 ?? null,
-    acomodador_1: semana.acomodador1 ?? null,
-    acomodador_2: semana.acomodador2 ?? null,
-  })
-  if (error) throw new Error(error.message)
+export async function saveSemanaFDS(semana: SemanaFDS): Promise<{ error?: string }> {
+  try {
+    const congId = getCongId()
+    const sb = getSupabase()
+    const { error } = await sb.from('semanas_fds').upsert({
+      id: semana.id,
+      congregation_id: congId,
+      fecha: semana.fecha,
+      fecha_locale: semana.fechaLocale ?? null,
+      titulo_articulo: semana.tituloArticulo ?? null,
+      cancion_apertura: semana.cancionApertura ?? null,
+      cancion_intermedia: semana.cancionIntermedia ?? null,
+      cancion_cierre: semana.cancionCierre ?? null,
+      boceto: semana.boceto ?? null,
+      disertacion_titulo: semana.disertacionTitulo ?? null,
+      orador_nombre: semana.oradorNombre ?? null,
+      orador_congregacion: semana.oradorCongregacion ?? null,
+      microfonista_1: semana.microfonista1 ?? null,
+      microfonista_2: semana.microfonista2 ?? null,
+      acomodador_1: semana.acomodador1 ?? null,
+      acomodador_2: semana.acomodador2 ?? null,
+    })
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
+  }
 }
 
 export async function deleteSemanaFDS(id: string): Promise<void> {
@@ -385,22 +400,27 @@ export async function getAllAsignacionesFDSConFecha(): Promise<Array<AsignacionF
 export async function saveAllAsignacionesFDS(
   semanaFDSId: string,
   asignaciones: Omit<AsignacionFDS, 'id' | 'semanaFDSId'>[]
-): Promise<void> {
-  const congId = getCongId()
-  const sb = getSupabase()
-  const { data: semana } = await sb
-    .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregation_id', congId).maybeSingle()
-  if (!semana) throw new Error('Semana FDS no encontrada')
-  await sb.from('asignaciones_fds').delete().eq('semana_fds_id', semanaFDSId)
-  if (asignaciones.length > 0) {
-    const { error } = await sb.from('asignaciones_fds').insert(
-      asignaciones.map(a => ({
-        id: randomUUID(),
-        semana_fds_id: semanaFDSId,
-        parte: a.parte,
-        hermano_id: a.hermanoId,
-      }))
-    )
-    if (error) throw new Error(error.message)
+): Promise<{ error?: string }> {
+  try {
+    const congId = getCongId()
+    const sb = getSupabase()
+    const { data: semana } = await sb
+      .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregation_id', congId).maybeSingle()
+    if (!semana) return { error: 'Semana FDS no encontrada' }
+    await sb.from('asignaciones_fds').delete().eq('semana_fds_id', semanaFDSId)
+    if (asignaciones.length > 0) {
+      const { error } = await sb.from('asignaciones_fds').insert(
+        asignaciones.map(a => ({
+          id: randomUUID(),
+          semana_fds_id: semanaFDSId,
+          parte: a.parte,
+          hermano_id: a.hermanoId,
+        }))
+      )
+      if (error) return { error: error.message }
+    }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
   }
 }

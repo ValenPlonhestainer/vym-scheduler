@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Calendar, Plus, Trash2, ChevronRight, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { getSemanas, deleteSemana, getAllAsignaciones, getSemanasFDS, deleteSemanaFDS } from '@/lib/actions'
 import { Semana, SemanaFDS, Asignacion } from '@/lib/types'
 import { formatFechaCorta } from '@/lib/utils'
@@ -64,10 +65,13 @@ function agruparEntradas(semanas: Semana[], semanasFDS: SemanaFDS[]): Record<str
   return grupos
 }
 
+type DeleteTarget = { tipo: 'semana'; item: Semana } | { tipo: 'fds'; item: SemanaFDS }
+
 export default function HistorialPage() {
   const [semanas, setSemanas] = useState<Semana[]>([])
   const [semanasFDS, setSemanasFDS] = useState<SemanaFDS[]>([])
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const { toast } = useToast()
 
   function load() {
@@ -81,20 +85,28 @@ export default function HistorialPage() {
   }
   useEffect(() => { load() }, [])
 
-  async function handleDeleteSemana(e: React.MouseEvent, s: Semana) {
+  function handleDeleteSemana(e: React.MouseEvent, s: Semana) {
     e.preventDefault()
-    if (!confirm(`¿Eliminar la reunión del ${formatFechaCorta(s.fecha)}?`)) return
-    await deleteSemana(s.id)
-    load()
-    toast({ title: 'Semana eliminada' })
+    setDeleteTarget({ tipo: 'semana', item: s })
   }
 
-  async function handleDeleteFDS(e: React.MouseEvent, f: SemanaFDS) {
+  function handleDeleteFDS(e: React.MouseEvent, f: SemanaFDS) {
     e.preventDefault()
-    if (!confirm(`¿Eliminar la reunión del ${formatFechaCorta(f.fecha)}?`)) return
-    await deleteSemanaFDS(f.id)
+    setDeleteTarget({ tipo: 'fds', item: f })
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    const fecha = formatFechaCorta(deleteTarget.item.fecha)
+    setDeleteTarget(null)
+    if (deleteTarget.tipo === 'semana') {
+      await deleteSemana(deleteTarget.item.id)
+      toast({ title: 'Semana eliminada', description: fecha })
+    } else {
+      await deleteSemanaFDS(deleteTarget.item.id)
+      toast({ title: 'Reunión eliminada', description: fecha })
+    }
     load()
-    toast({ title: 'Reunión de fin de semana eliminada' })
   }
 
   const grupos = agruparEntradas(semanas, semanasFDS)
@@ -284,6 +296,25 @@ export default function HistorialPage() {
           </div>
         )
       })}
+
+      <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar reunión</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            ¿Eliminar la reunión del{' '}
+            <span className="font-medium text-foreground">
+              {deleteTarget ? formatFechaCorta(deleteTarget.item.fecha) : ''}
+            </span>?
+            {' '}Se borrarán todas sus asignaciones.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

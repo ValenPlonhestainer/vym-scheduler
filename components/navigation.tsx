@@ -48,11 +48,13 @@ function NavContent({ pathname, rol, onNavigate, onLogoutClick }: {
       <Link
         href="/inicio"
         onClick={onNavigate}
-        className="flex items-center gap-2 px-5 py-5 font-bold text-primary border-b border-border"
+        className="flex items-center gap-2 px-5 py-4 border-b border-border"
       >
-        <BookOpen className="h-5 w-5 shrink-0" />
-        <span className="flex-1">VyM Scheduler</span>
-        <RolBadge rol={rol} />
+        <BookOpen className="h-5 w-5 shrink-0 text-primary" />
+        <div className="flex-1">
+          <p className="font-bold text-primary leading-tight">VyM Scheduler</p>
+          {rol && <RolBadge rol={rol} />}
+        </div>
       </Link>
 
       <nav className="flex flex-col gap-1 p-3 flex-1">
@@ -100,7 +102,7 @@ export function Navigation() {
     setRol(getRolFromCookie())
   }, [])
 
-  if (pathname === '/' || pathname.startsWith('/admin') || pathname === '/registro') return null
+  if (pathname === '/' || pathname.startsWith('/admin') || pathname.startsWith('/registro')) return null
 
   function handleLogout() {
     ;['vym_prog_semana','vym_prog_asigs','vym_prog_fds','vym_prog_asigsfds','vym_prog_tipo','vym_prog_salaaux'].forEach(k => localStorage.removeItem(k))

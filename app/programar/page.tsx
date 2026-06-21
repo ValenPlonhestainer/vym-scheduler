@@ -251,11 +251,13 @@ export default function ProgramarPage() {
       acomodador2: semana.acomodador2,
     }
     try {
-      await saveSemana(s)
+      const r1 = await saveSemana(s)
+      if (r1.error) { toast({ title: 'Error al guardar', description: r1.error, variant: 'destructive' }); return }
       const asignArray = Object.entries(asigs)
         .filter(([, v]) => !!v)
         .map(([parte, hermanoId]) => ({ parte: parte as ParteTipo, hermanoId: hermanoId! }))
-      await saveAllAsignaciones(s.id, asignArray)
+      const r2 = await saveAllAsignaciones(s.id, asignArray)
+      if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
       setSemanaSaved(true)
       toast({ title: 'Reunión guardada', description: 'La reunión entre semana fue guardada correctamente.' })
     } catch (err) {
@@ -294,11 +296,13 @@ export default function ProgramarPage() {
       acomodador2: semanaFDS.acomodador2,
     }
     try {
-      await saveSemanaFDS(s)
+      const r1 = await saveSemanaFDS(s)
+      if (r1.error) { toast({ title: 'Error al guardar', description: r1.error, variant: 'destructive' }); return }
       const asignArray = Object.entries(asigsFDS)
         .filter(([, v]) => !!v)
         .map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
-      await saveAllAsignacionesFDS(s.id, asignArray)
+      const r2 = await saveAllAsignacionesFDS(s.id, asignArray)
+      if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
       setFdsSaved(true)
       toast({ title: 'Reunión guardada', description: 'La reunión de fin de semana fue guardada correctamente.' })
     } catch (err) {

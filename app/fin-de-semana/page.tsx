@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Calendar, Plus, Trash2, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { getSemanasFDS, deleteSemanaFDS, getAllAsignacionesFDS } from '@/lib/actions'
 import { SemanaFDS, AsignacionFDS } from '@/lib/types'
 import { formatFechaCorta, agruparSemanasPorMes } from '@/lib/utils'
@@ -13,6 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 export default function FinDeSemanaPage() {
   const [semanas, setSemanas] = useState<SemanaFDS[]>([])
   const [asignaciones, setAsignaciones] = useState<AsignacionFDS[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<SemanaFDS | null>(null)
   const { toast } = useToast()
 
   function load() {
@@ -23,11 +25,13 @@ export default function FinDeSemanaPage() {
   }
   useEffect(() => { load() }, [])
 
-  async function handleDelete(s: SemanaFDS) {
-    if (!confirm(`¿Eliminar la reunión del ${formatFechaCorta(s.fecha)}?`)) return
-    await deleteSemanaFDS(s.id)
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    const fecha = formatFechaCorta(deleteTarget.fecha)
+    setDeleteTarget(null)
+    await deleteSemanaFDS(deleteTarget.id)
     load()
-    toast({ title: 'Reunión eliminada' })
+    toast({ title: 'Reunión eliminada', description: fecha })
   }
 
   const grupos = agruparSemanasPorMes(semanas)
@@ -101,7 +105,7 @@ export default function FinDeSemanaPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-red-500 hover:text-red-400"
-                            onClick={e => { e.preventDefault(); handleDelete(s) }}
+                            onClick={e => { e.preventDefault(); setDeleteTarget(s) }}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -116,6 +120,25 @@ export default function FinDeSemanaPage() {
           </div>
         )
       })}
+
+      <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar reunión</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            ¿Eliminar la reunión del{' '}
+            <span className="font-medium text-foreground">
+              {deleteTarget ? formatFechaCorta(deleteTarget.fecha) : ''}
+            </span>?
+            {' '}Se borrarán todas sus asignaciones.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

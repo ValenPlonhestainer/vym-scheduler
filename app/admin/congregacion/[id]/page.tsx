@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Users, Calendar, Loader2 } from 'lucide-react'
+import { ArrowLeft, Users, Calendar, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -42,6 +42,7 @@ export default function CongregacionDetailPage() {
   const [datos, setDatos] = useState<DatosCong | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [hermanosAbierto, setHermanosAbierto] = useState(false)
 
   useEffect(() => {
     fetch(`/api/admin/congregacion/${id}`)
@@ -69,6 +70,12 @@ export default function CongregacionDetailPage() {
     </div>
   )
 
+  const ROL_ORDER: Record<string, number> = { anciano: 0, siervo: 1, publicador: 2, hermana: 3 }
+  const hermanosSorted = [...datos.hermanos].sort((a, b) => {
+    const rolDiff = (ROL_ORDER[a.rol] ?? 9) - (ROL_ORDER[b.rol] ?? 9)
+    if (rolDiff !== 0) return rolDiff
+    return a.nombre.localeCompare(b.nombre)
+  })
   const hermanoActivos = datos.hermanos.filter(h => h.activo)
   const hermanoInactivos = datos.hermanos.filter(h => !h.activo)
 
@@ -122,28 +129,36 @@ export default function CongregacionDetailPage() {
 
       {/* Hermanos */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader
+          className="pb-2 cursor-pointer select-none"
+          onClick={() => setHermanosAbierto(v => !v)}
+        >
           <CardTitle className="text-sm flex items-center gap-2">
             <Users className="h-4 w-4" /> Hermanos ({datos.hermanos.length})
+            <span className="ml-auto">
+              {hermanosAbierto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {datos.hermanos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin hermanos cargados.</p>
-          ) : (
-            <div className="space-y-1">
-              {datos.hermanos.map(h => (
-                <div key={h.id} className={`flex items-center gap-2 text-sm py-1 ${!h.activo ? 'opacity-40' : ''}`}>
-                  <span className="flex-1">{h.nombre}</span>
-                  <Badge variant="outline" className={`text-xs ${ROL_COLORS[h.rol] ?? ''}`}>
-                    {ROL_LABELS[h.rol] ?? h.rol}
-                  </Badge>
-                  {!h.activo && <span className="text-xs text-muted-foreground">(inactivo)</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+        {hermanosAbierto && (
+          <CardContent>
+            {hermanosSorted.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin hermanos cargados.</p>
+            ) : (
+              <div className="space-y-1">
+                {hermanosSorted.map(h => (
+                  <div key={h.id} className={`flex items-center gap-2 text-sm py-1 ${!h.activo ? 'opacity-40' : ''}`}>
+                    <span className="flex-1">{h.nombre}</span>
+                    <Badge variant="outline" className={`text-xs ${ROL_COLORS[h.rol] ?? ''}`}>
+                      {ROL_LABELS[h.rol] ?? h.rol}
+                    </Badge>
+                    {!h.activo && <span className="text-xs text-muted-foreground">(inactivo)</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
 
       {/* Últimas reuniones entre semana */}

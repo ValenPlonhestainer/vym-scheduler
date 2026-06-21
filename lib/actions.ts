@@ -96,7 +96,7 @@ export async function getHermanos(): Promise<Hermano[]> {
   const { data, error } = await sb
     .from('hermanos')
     .select('*')
-    .eq('congregacion_id', congId)
+    .eq('congregation_id', congId)
     .order('nombre')
   if (error) throw new Error(error.message)
   return (data ?? []).map(r => dbToHermano(r as Record<string, unknown>))
@@ -108,7 +108,7 @@ export async function saveHermano(hermano: Hermano): Promise<{ error?: string }>
     const sb = getSupabase()
     const { error } = await sb.from('hermanos').upsert({
       id: hermano.id,
-      congregacion_id: congId,
+      congregation_id: congId,
       nombre: hermano.nombre,
       genero: hermano.genero,
       rol: hermano.rol,
@@ -126,7 +126,7 @@ export async function saveHermano(hermano: Hermano): Promise<{ error?: string }>
 export async function deleteHermano(id: string): Promise<void> {
   const congId = getCongId()
   const sb = getSupabase()
-  const { error } = await sb.from('hermanos').delete().eq('id', id).eq('congregacion_id', congId)
+  const { error } = await sb.from('hermanos').delete().eq('id', id).eq('congregation_id', congId)
   if (error) throw new Error(error.message)
 }
 
@@ -138,7 +138,7 @@ export async function getSemanas(): Promise<Semana[]> {
   const { data, error } = await sb
     .from('semanas')
     .select('*')
-    .eq('congregacion_id', congId)
+    .eq('congregation_id', congId)
     .order('fecha')
   if (error) throw new Error(error.message)
   return (data ?? []).map(r => dbToSemana(r as Record<string, unknown>))
@@ -151,7 +151,7 @@ export async function getSemana(id: string): Promise<Semana | undefined> {
     .from('semanas')
     .select('*')
     .eq('id', id)
-    .eq('congregacion_id', congId)
+    .eq('congregation_id', congId)
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data ? dbToSemana(data as Record<string, unknown>) : undefined
@@ -162,7 +162,7 @@ export async function saveSemana(semana: Semana): Promise<void> {
   const sb = getSupabase()
   const { error } = await sb.from('semanas').upsert({
     id: semana.id,
-    congregacion_id: congId,
+    congregation_id: congId,
     fecha: semana.fecha,
     tema: semana.tema ?? null,
     lectura_biblica: semana.lecturaBiblica ?? null,
@@ -182,7 +182,7 @@ export async function saveSemana(semana: Semana): Promise<void> {
 export async function deleteSemana(id: string): Promise<void> {
   const congId = getCongId()
   const sb = getSupabase()
-  const { error } = await sb.from('semanas').delete().eq('id', id).eq('congregacion_id', congId)
+  const { error } = await sb.from('semanas').delete().eq('id', id).eq('congregation_id', congId)
   if (error) throw new Error(error.message)
 }
 
@@ -193,7 +193,7 @@ export async function getAsignaciones(semanaId: string): Promise<Asignacion[]> {
   const sb = getSupabase()
   // Verify semana belongs to congregation
   const { data: semana } = await sb
-    .from('semanas').select('id').eq('id', semanaId).eq('congregacion_id', congId).maybeSingle()
+    .from('semanas').select('id').eq('id', semanaId).eq('congregation_id', congId).maybeSingle()
   if (!semana) return []
   const { data, error } = await sb.from('asignaciones').select('*').eq('semana_id', semanaId)
   if (error) throw new Error(error.message)
@@ -203,7 +203,7 @@ export async function getAsignaciones(semanaId: string): Promise<Asignacion[]> {
 export async function getAllAsignaciones(): Promise<Asignacion[]> {
   const congId = getCongId()
   const sb = getSupabase()
-  const { data: semanas } = await sb.from('semanas').select('id').eq('congregacion_id', congId)
+  const { data: semanas } = await sb.from('semanas').select('id').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const ids = semanas.map(s => s.id)
   const { data, error } = await sb.from('asignaciones').select('*').in('semana_id', ids)
@@ -214,7 +214,7 @@ export async function getAllAsignaciones(): Promise<Asignacion[]> {
 export async function getAllAsignacionesConFecha(): Promise<Array<Asignacion & { fecha: string }>> {
   const congId = getCongId()
   const sb = getSupabase()
-  const { data: semanas } = await sb.from('semanas').select('id, fecha').eq('congregacion_id', congId)
+  const { data: semanas } = await sb.from('semanas').select('id, fecha').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const semanaMap = new Map(semanas.map(s => [s.id, s.fecha as string]))
   const ids = semanas.map(s => s.id)
@@ -233,7 +233,7 @@ export async function saveAllAsignaciones(
   const congId = getCongId()
   const sb = getSupabase()
   const { data: semana } = await sb
-    .from('semanas').select('id').eq('id', semanaId).eq('congregacion_id', congId).maybeSingle()
+    .from('semanas').select('id').eq('id', semanaId).eq('congregation_id', congId).maybeSingle()
   if (!semana) throw new Error('Semana no encontrada')
   await sb.from('asignaciones').delete().eq('semana_id', semanaId)
   if (asignaciones.length > 0) {
@@ -255,7 +255,7 @@ export async function getAsignacionesHermano(
   const congId = getCongId()
   const sb = getSupabase()
   const { data: semanas } = await sb
-    .from('semanas').select('*').eq('congregacion_id', congId).order('fecha')
+    .from('semanas').select('*').eq('congregation_id', congId).order('fecha')
   if (!semanas?.length) return []
   const semanaMap = new Map(semanas.map(s => [s.id as string, dbToSemana(s as Record<string, unknown>)]))
   const ids = semanas.map(s => s.id)
@@ -293,7 +293,7 @@ export async function getSemanasFDS(): Promise<SemanaFDS[]> {
   const { data, error } = await sb
     .from('semanas_fds')
     .select('*')
-    .eq('congregacion_id', congId)
+    .eq('congregation_id', congId)
     .order('fecha')
   if (error) throw new Error(error.message)
   return (data ?? []).map(r => dbToSemanaFDS(r as Record<string, unknown>))
@@ -306,7 +306,7 @@ export async function getSemanaFDS(id: string): Promise<SemanaFDS | undefined> {
     .from('semanas_fds')
     .select('*')
     .eq('id', id)
-    .eq('congregacion_id', congId)
+    .eq('congregation_id', congId)
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data ? dbToSemanaFDS(data as Record<string, unknown>) : undefined
@@ -317,7 +317,7 @@ export async function saveSemanaFDS(semana: SemanaFDS): Promise<void> {
   const sb = getSupabase()
   const { error } = await sb.from('semanas_fds').upsert({
     id: semana.id,
-    congregacion_id: congId,
+    congregation_id: congId,
     fecha: semana.fecha,
     fecha_locale: semana.fechaLocale ?? null,
     titulo_articulo: semana.tituloArticulo ?? null,
@@ -339,7 +339,7 @@ export async function saveSemanaFDS(semana: SemanaFDS): Promise<void> {
 export async function deleteSemanaFDS(id: string): Promise<void> {
   const congId = getCongId()
   const sb = getSupabase()
-  const { error } = await sb.from('semanas_fds').delete().eq('id', id).eq('congregacion_id', congId)
+  const { error } = await sb.from('semanas_fds').delete().eq('id', id).eq('congregation_id', congId)
   if (error) throw new Error(error.message)
 }
 
@@ -349,7 +349,7 @@ export async function getAsignacionesFDS(semanaFDSId: string): Promise<Asignacio
   const congId = getCongId()
   const sb = getSupabase()
   const { data: semana } = await sb
-    .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregacion_id', congId).maybeSingle()
+    .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregation_id', congId).maybeSingle()
   if (!semana) return []
   const { data, error } = await sb.from('asignaciones_fds').select('*').eq('semana_fds_id', semanaFDSId)
   if (error) throw new Error(error.message)
@@ -359,7 +359,7 @@ export async function getAsignacionesFDS(semanaFDSId: string): Promise<Asignacio
 export async function getAllAsignacionesFDS(): Promise<AsignacionFDS[]> {
   const congId = getCongId()
   const sb = getSupabase()
-  const { data: semanas } = await sb.from('semanas_fds').select('id').eq('congregacion_id', congId)
+  const { data: semanas } = await sb.from('semanas_fds').select('id').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const ids = semanas.map(s => s.id)
   const { data, error } = await sb.from('asignaciones_fds').select('*').in('semana_fds_id', ids)
@@ -370,7 +370,7 @@ export async function getAllAsignacionesFDS(): Promise<AsignacionFDS[]> {
 export async function getAllAsignacionesFDSConFecha(): Promise<Array<AsignacionFDS & { fecha: string }>> {
   const congId = getCongId()
   const sb = getSupabase()
-  const { data: semanas } = await sb.from('semanas_fds').select('id, fecha').eq('congregacion_id', congId)
+  const { data: semanas } = await sb.from('semanas_fds').select('id, fecha').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const semanaMap = new Map(semanas.map(s => [s.id, s.fecha as string]))
   const ids = semanas.map(s => s.id)
@@ -389,7 +389,7 @@ export async function saveAllAsignacionesFDS(
   const congId = getCongId()
   const sb = getSupabase()
   const { data: semana } = await sb
-    .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregacion_id', congId).maybeSingle()
+    .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregation_id', congId).maybeSingle()
   if (!semana) throw new Error('Semana FDS no encontrada')
   await sb.from('asignaciones_fds').delete().eq('semana_fds_id', semanaFDSId)
   if (asignaciones.length > 0) {

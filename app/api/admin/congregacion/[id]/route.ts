@@ -16,9 +16,9 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   const [{ data: congregacion }, { data: hermanos }, { data: semanas }, { data: semanasFDS }, { data: miembros }] =
     await Promise.all([
       sb.from('congregaciones').select('id, nombre').eq('id', congId).maybeSingle(),
-      sb.from('hermanos').select('id, nombre, rol, genero, activo').eq('congregacion_id', congId).order('nombre'),
-      sb.from('semanas').select('id, fecha, tema').eq('congregacion_id', congId).order('fecha', { ascending: false }).limit(10),
-      sb.from('semanas_fds').select('id, fecha, titulo_articulo').eq('congregacion_id', congId).order('fecha', { ascending: false }).limit(10),
+      sb.from('hermanos').select('id, nombre, rol, genero, activo').eq('congregation_id', congId).order('nombre'),
+      sb.from('semanas').select('id, fecha, tema').eq('congregation_id', congId).order('fecha', { ascending: false }).limit(10),
+      sb.from('semanas_fds').select('id, fecha, titulo_articulo').eq('congregation_id', congId).order('fecha', { ascending: false }).limit(10),
       sb.from('congregacion_miembros').select('nombre, rol, created_at').eq('congregacion_id', congId).order('created_at'),
     ])
 

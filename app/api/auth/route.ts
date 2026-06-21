@@ -19,8 +19,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Correo y contraseña requeridos' }, { status: 400 })
     }
 
-    const sb = getSupabase()
-    const { data: authData, error: authError } = await sb.auth.signInWithPassword({ email, password })
+    // Cliente solo para auth (signInWithPassword cambia su estado interno al JWT del usuario)
+    const sbAuth = getSupabase()
+    const { data: authData, error: authError } = await sbAuth.auth.signInWithPassword({ email, password })
 
     if (authError || !authData.user) {
       return NextResponse.json({ error: 'Correo o contraseña incorrectos' }, { status: 401 })
@@ -28,14 +29,20 @@ export async function POST(request: NextRequest) {
 
     const userId = authData.user.id
 
-    const { data: miembro } = await sb
+    // Cliente fresco con service role key para queries de DB (no tiene sesión de usuario)
+    const sb = getSupabase()
+    const { data: miembro, error: miembroError } = await sb
       .from('congregacion_miembros')
       .select('congregacion_id')
       .eq('user_id', userId)
       .maybeSingle()
 
+    if (miembroError) {
+      return NextResponse.json({ error: `Error al buscar congregación: ${miembroError.message}` }, { status: 500 })
+    }
+
     if (!miembro) {
-      return NextResponse.json({ error: 'Esta cuenta no está asociada a ninguna congregación' }, { status: 403 })
+      return NextResponse.json({ error: `Esta cuenta (${userId}) no está asociada a ninguna congregación` }, { status: 403 })
     }
 
     const congregacionId = miembro.congregacion_id as string

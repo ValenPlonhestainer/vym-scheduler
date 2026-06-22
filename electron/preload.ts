@@ -10,4 +10,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('activation-result', (_event, result) => cb(result))
   },
   signalActivated: () => ipcRenderer.emit('license-activated'),
+
+  // Auto-update
+  onUpdateAvailable: (cb: (info: { version: string }) => void) => {
+    ipcRenderer.on('update-available', (_e, info) => cb(info))
+  },
+  onDownloadProgress: (cb: (progress: { percent: number }) => void) => {
+    ipcRenderer.on('download-progress', (_e, progress) => cb(progress))
+  },
+  onUpdateDownloaded: (cb: () => void) => {
+    ipcRenderer.on('update-downloaded', () => cb())
+  },
+  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
+  confirmDownload: () => ipcRenderer.send('confirm-update-download'),
+  showUpdateNotification: () => ipcRenderer.send('show-update-notification'),
+  installUpdate: () => ipcRenderer.send('install-update'),
 })

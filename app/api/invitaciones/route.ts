@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { randomBytes } from 'crypto'
-import { getSupabase } from '@/lib/supabase'
+import { getAuthedSupabase } from '@/lib/supabase'
 
 function getCongId(): string {
   const id = cookies().get('congregation_id')?.value
@@ -17,7 +17,7 @@ function getUserRole(): string {
 export async function GET() {
   try {
     const congId = getCongId()
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     const { data, error } = await sb
       .from('invitaciones')
       .select('id, codigo, usado, created_at')
@@ -38,7 +38,7 @@ export async function POST() {
       return NextResponse.json({ error: 'Solo el organizador puede generar códigos de invitación' }, { status: 403 })
     }
     const congId = getCongId()
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     const codigo = randomBytes(4).toString('hex').toUpperCase()
     const { data, error } = await sb
       .from('invitaciones')
@@ -58,7 +58,7 @@ export async function DELETE(request: NextRequest) {
     const congId = getCongId()
     const { id } = await request.json()
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     await sb.from('invitaciones').delete().eq('id', id).eq('congregacion_id', congId)
     return NextResponse.json({ ok: true })
   } catch (err) {

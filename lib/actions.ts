@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { randomUUID } from 'crypto'
-import { getSupabase } from './supabase'
+import { getAuthedSupabase } from './supabase'
 import {
   Hermano, Semana, Asignacion, ParteTipo,
   SemanaFDS, AsignacionFDS, ParteTipoFDS,
@@ -92,7 +92,7 @@ function dbToAsignacionFDS(r: Record<string, unknown>): AsignacionFDS {
 
 export async function getHermanos(): Promise<Hermano[]> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data, error } = await sb
     .from('hermanos')
     .select('*')
@@ -105,7 +105,7 @@ export async function getHermanos(): Promise<Hermano[]> {
 export async function saveHermano(hermano: Hermano): Promise<{ error?: string }> {
   try {
     const congId = getCongId()
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     const { error } = await sb.from('hermanos').upsert({
       id: hermano.id,
       congregation_id: congId,
@@ -125,7 +125,7 @@ export async function saveHermano(hermano: Hermano): Promise<{ error?: string }>
 
 export async function deleteHermano(id: string): Promise<void> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { error } = await sb.from('hermanos').delete().eq('id', id).eq('congregation_id', congId)
   if (error) throw new Error(error.message)
 }
@@ -134,7 +134,7 @@ export async function deleteHermano(id: string): Promise<void> {
 
 export async function getSemanas(): Promise<Semana[]> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data, error } = await sb
     .from('semanas')
     .select('*')
@@ -146,7 +146,7 @@ export async function getSemanas(): Promise<Semana[]> {
 
 export async function getSemana(id: string): Promise<Semana | undefined> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data, error } = await sb
     .from('semanas')
     .select('*')
@@ -160,7 +160,7 @@ export async function getSemana(id: string): Promise<Semana | undefined> {
 export async function saveSemana(semana: Semana): Promise<{ error?: string }> {
   try {
     const congId = getCongId()
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     const { error } = await sb.from('semanas').upsert({
       id: semana.id,
       congregation_id: congId,
@@ -186,7 +186,7 @@ export async function saveSemana(semana: Semana): Promise<{ error?: string }> {
 
 export async function deleteSemana(id: string): Promise<void> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { error } = await sb.from('semanas').delete().eq('id', id).eq('congregation_id', congId)
   if (error) throw new Error(error.message)
 }
@@ -195,7 +195,7 @@ export async function deleteSemana(id: string): Promise<void> {
 
 export async function getAsignaciones(semanaId: string): Promise<Asignacion[]> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   // Verify semana belongs to congregation
   const { data: semana } = await sb
     .from('semanas').select('id').eq('id', semanaId).eq('congregation_id', congId).maybeSingle()
@@ -207,7 +207,7 @@ export async function getAsignaciones(semanaId: string): Promise<Asignacion[]> {
 
 export async function getAllAsignaciones(): Promise<Asignacion[]> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data: semanas } = await sb.from('semanas').select('id').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const ids = semanas.map(s => s.id)
@@ -218,7 +218,7 @@ export async function getAllAsignaciones(): Promise<Asignacion[]> {
 
 export async function getAllAsignacionesConFecha(): Promise<Array<Asignacion & { fecha: string }>> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data: semanas } = await sb.from('semanas').select('id, fecha').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const semanaMap = new Map(semanas.map(s => [s.id, s.fecha as string]))
@@ -237,7 +237,7 @@ export async function saveAllAsignaciones(
 ): Promise<{ error?: string }> {
   try {
     const congId = getCongId()
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     const { data: semana } = await sb
       .from('semanas').select('id').eq('id', semanaId).eq('congregation_id', congId).maybeSingle()
     if (!semana) return { error: 'Semana no encontrada' }
@@ -264,7 +264,7 @@ export async function getAsignacionesHermano(
   hermanoId: string
 ): Promise<Array<{ semana: Semana; parte: ParteTipo }>> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data: semanas } = await sb
     .from('semanas').select('*').eq('congregation_id', congId).order('fecha')
   if (!semanas?.length) return []
@@ -285,14 +285,14 @@ export async function getAsignacionesHermano(
 
 export async function getCongregacion(): Promise<string> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data } = await sb.from('congregaciones').select('nombre').eq('id', congId).maybeSingle()
   return (data?.nombre as string) ?? ''
 }
 
 export async function saveCongregacion(nombre: string): Promise<void> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   await sb.from('congregaciones').update({ nombre }).eq('id', congId)
 }
 
@@ -300,7 +300,7 @@ export async function saveCongregacion(nombre: string): Promise<void> {
 
 export async function getSemanasFDS(): Promise<SemanaFDS[]> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data, error } = await sb
     .from('semanas_fds')
     .select('*')
@@ -312,7 +312,7 @@ export async function getSemanasFDS(): Promise<SemanaFDS[]> {
 
 export async function getSemanaFDS(id: string): Promise<SemanaFDS | undefined> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data, error } = await sb
     .from('semanas_fds')
     .select('*')
@@ -326,7 +326,7 @@ export async function getSemanaFDS(id: string): Promise<SemanaFDS | undefined> {
 export async function saveSemanaFDS(semana: SemanaFDS): Promise<{ error?: string }> {
   try {
     const congId = getCongId()
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     const { error } = await sb.from('semanas_fds').upsert({
       id: semana.id,
       congregation_id: congId,
@@ -354,7 +354,7 @@ export async function saveSemanaFDS(semana: SemanaFDS): Promise<{ error?: string
 
 export async function deleteSemanaFDS(id: string): Promise<void> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { error } = await sb.from('semanas_fds').delete().eq('id', id).eq('congregation_id', congId)
   if (error) throw new Error(error.message)
 }
@@ -363,7 +363,7 @@ export async function deleteSemanaFDS(id: string): Promise<void> {
 
 export async function getAsignacionesFDS(semanaFDSId: string): Promise<AsignacionFDS[]> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data: semana } = await sb
     .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregation_id', congId).maybeSingle()
   if (!semana) return []
@@ -374,7 +374,7 @@ export async function getAsignacionesFDS(semanaFDSId: string): Promise<Asignacio
 
 export async function getAllAsignacionesFDS(): Promise<AsignacionFDS[]> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data: semanas } = await sb.from('semanas_fds').select('id').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const ids = semanas.map(s => s.id)
@@ -385,7 +385,7 @@ export async function getAllAsignacionesFDS(): Promise<AsignacionFDS[]> {
 
 export async function getAllAsignacionesFDSConFecha(): Promise<Array<AsignacionFDS & { fecha: string }>> {
   const congId = getCongId()
-  const sb = getSupabase()
+  const sb = await getAuthedSupabase()
   const { data: semanas } = await sb.from('semanas_fds').select('id, fecha').eq('congregation_id', congId)
   if (!semanas?.length) return []
   const semanaMap = new Map(semanas.map(s => [s.id, s.fecha as string]))
@@ -404,7 +404,7 @@ export async function saveAllAsignacionesFDS(
 ): Promise<{ error?: string }> {
   try {
     const congId = getCongId()
-    const sb = getSupabase()
+    const sb = await getAuthedSupabase()
     const { data: semana } = await sb
       .from('semanas_fds').select('id').eq('id', semanaFDSId).eq('congregation_id', congId).maybeSingle()
     if (!semana) return { error: 'Semana FDS no encontrada' }

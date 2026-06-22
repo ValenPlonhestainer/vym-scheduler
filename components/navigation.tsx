@@ -37,9 +37,8 @@ function RolBadge({ rol }: { rol: string | null }) {
   )
 }
 
-function NavContent({ pathname, rol, onNavigate, onLogoutClick }: {
+function NavContent({ pathname, onNavigate, onLogoutClick }: {
   pathname: string
-  rol: string | null
   onNavigate?: () => void
   onLogoutClick: () => void
 }) {
@@ -51,10 +50,7 @@ function NavContent({ pathname, rol, onNavigate, onLogoutClick }: {
         className="flex items-center gap-2 px-5 py-4 border-b border-border"
       >
         <BookOpen className="h-5 w-5 shrink-0 text-primary" />
-        <div className="flex-1">
-          <p className="font-bold text-primary leading-tight">VyM Scheduler</p>
-          {rol && <RolBadge rol={rol} />}
-        </div>
+        <p className="font-bold text-primary leading-tight">VyM Scheduler</p>
       </Link>
 
       <nav className="flex flex-col gap-1 p-3 flex-1">
@@ -111,11 +107,17 @@ export function Navigation() {
 
   return (
     <>
+      {/* Badge de rol — esquina superior derecha (desktop) */}
+      {rol && (
+        <div className="fixed top-3 right-4 z-50 hidden md:block no-print">
+          <RolBadge rol={rol} />
+        </div>
+      )}
+
       {/* Sidebar desktop */}
       <aside className="fixed top-0 left-0 h-full w-52 bg-card border-r border-border flex-col z-40 no-print hidden md:flex">
         <NavContent
           pathname={pathname}
-          rol={rol}
           onLogoutClick={() => setLogoutOpen(true)}
         />
       </aside>
@@ -139,7 +141,6 @@ export function Navigation() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <NavContent
           pathname={pathname}
-          rol={rol}
           onNavigate={() => setMobileOpen(false)}
           onLogoutClick={() => { setMobileOpen(false); setLogoutOpen(true) }}
         />

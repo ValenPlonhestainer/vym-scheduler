@@ -127,16 +127,16 @@ export default function SemanaDetailPage() {
 
   const colorMap: Record<string, string> = {
     apertura: 'bg-card border-border',
-    tesoros: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40',
-    maestros: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/40',
-    cristiana: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40',
+    tesoros: 'bg-[#3c7f8b]/35 border-[#3c7f8b]/60 dark:bg-[#3c7f8b]/15 dark:border-[#3c7f8b]/30',
+    maestros: 'bg-[#d68f00]/35 border-[#d68f00]/60 dark:bg-[#d68f00]/15 dark:border-[#d68f00]/30',
+    cristiana: 'bg-[#bf2f13]/35 border-[#bf2f13]/60 dark:bg-[#bf2f13]/15 dark:border-[#bf2f13]/30',
     cierre: 'bg-card border-border',
   }
   const titleColorMap: Record<string, string> = {
     apertura: 'text-muted-foreground',
-    tesoros: 'text-amber-600 dark:text-amber-400',
-    maestros: 'text-green-600 dark:text-green-400',
-    cristiana: 'text-blue-600 dark:text-blue-400',
+    tesoros: 'text-[#3c7f8b] dark:text-[#6abac8]',
+    maestros: 'text-[#d68f00] dark:text-[#f0b030]',
+    cristiana: 'text-[#bf2f13] dark:text-[#e05c3a]',
     cierre: 'text-muted-foreground',
   }
 

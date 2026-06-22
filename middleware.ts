@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (pathname.startsWith('/api/auth')) {
+  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/check-sesion')) {
     return NextResponse.next()
   }
 

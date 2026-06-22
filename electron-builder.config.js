@@ -22,6 +22,8 @@ module.exports = {
     { from: 'electron/activation.html', to: 'electron/activation.html' },
   ],
 
+  artifactName: 'VyM-Scheduler-Setup-${version}.${ext}',
+
   win: {
     icon: 'build/icon.ico',
     target: [{ target: 'nsis', arch: ['x64'] }],
@@ -29,13 +31,13 @@ module.exports = {
 
   nsis: {
     oneClick: false,
+    perMachine: false,
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: false,
     createStartMenuShortcut: true,
     shortcutName: 'VyM Scheduler',
     installerIcon: 'build/icon.ico',
     uninstallerIcon: 'build/icon.ico',
-    include: 'build/installer.nsh',
   },
 
   asarUnpack: [
@@ -43,4 +45,9 @@ module.exports = {
   ],
 
   npmRebuild: true,
+
+  publish: {
+    provider: 'generic',
+    url: 'https://pub-ea9f59664d6d4742a8da9c6c3db561fe.r2.dev',
+  },
 }

@@ -40,8 +40,8 @@ const PRIVILEGIOS_CONFIG: PrivilegioConfig[] = [
   { key: 'discurso_tesoros',     label: 'Discurso (Tesoros de la Biblia)',        rolesVisibles: ['anciano', 'siervo'],                               seccion: 'semana' },
   { key: 'busquemos_perlas',     label: 'Busquemos perlas escondidas',            rolesVisibles: ['anciano', 'siervo'],                               seccion: 'semana' },
   { key: 'lectura_biblica',          label: 'Lectura de la Biblia',                        rolesVisibles: ['anciano', 'siervo', 'publicador'],                  seccion: 'semana' },
-  { key: 'estudiante_conversacion',  label: 'Estudiante sala principal — conversaciones',   rolesVisibles: ['anciano', 'siervo', 'publicador', 'hermana'],       seccion: 'semana' },
-  { key: 'estudiante_discurso',      label: 'Estudiante sala principal — discursos',        rolesVisibles: ['anciano', 'siervo', 'publicador'],                  seccion: 'semana', soloHombres: true },
+  { key: 'estudiante_conversacion',  label: 'Estudiante sala principal — conversaciones',   rolesVisibles: ['publicador', 'hermana'],       seccion: 'semana' },
+  { key: 'estudiante_discurso',      label: 'Estudiante sala principal — discursos',        rolesVisibles: ['publicador'],                  seccion: 'semana', soloHombres: true },
   { key: 'ayudante_estudiante',      label: 'Ayudante de estudiante',                       rolesVisibles: ['anciano', 'siervo', 'publicador', 'hermana'],       seccion: 'semana' },
   { key: 'partes_vida_cristiana',label: 'Partes de Nuestra Vida Cristiana',      rolesVisibles: ['anciano', 'siervo'],                               seccion: 'semana' },
   { key: 'conductor_estudio',    label: 'Conductor del Estudio Bíblico',         rolesVisibles: ['anciano', 'siervo'],                               seccion: 'semana' },
@@ -95,6 +95,12 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
           privActualizados[cfg.key] = defaults[cfg.key]
         }
       }
+      if (['anciano', 'siervo'].includes(nuevoRol)) {
+        privActualizados.estudiante_conversacion = true
+        privActualizados.estudiante_discurso = true
+        privActualizados.estudiante_aux_conversacion = true
+        privActualizados.estudiante_aux_discurso = true
+      }
       return { ...f, rol: nuevoRol, privilegios: privActualizados }
     })
   }
@@ -122,7 +128,14 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
     setNombreError('')
     setSaving(true)
     try {
-      const data: Hermano = { id: hermano?.id ?? generateId(), ...form }
+      const privsFinales = { ...(form.privilegios ?? getPrivilegiosDefecto(form.rol)) }
+      if (['anciano', 'siervo'].includes(form.rol)) {
+        privsFinales.estudiante_conversacion = true
+        privsFinales.estudiante_discurso = true
+        privsFinales.estudiante_aux_conversacion = true
+        privsFinales.estudiante_aux_discurso = true
+      }
+      const data: Hermano = { id: hermano?.id ?? generateId(), ...form, privilegios: privsFinales }
       const result = await saveHermano(data)
       if (result?.error) {
         toast({ title: 'Error al guardar', description: result.error, variant: 'destructive' })

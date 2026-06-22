@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase'
+import { getAnonSupabase, supabaseWithToken, SESSION_COOKIE_OPTS } from '@/lib/supabase'
 
-const COOKIE_OPTS = {
-  httpOnly: true,
-  secure: false,
-  sameSite: 'strict' as const,
-  maxAge: 60 * 60 * 24 * 365 * 10,
-  path: '/',
-}
+const COOKIE_OPTS = SESSION_COOKIE_OPTS
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,21 +13,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Correo y contraseña requeridos' }, { status: 400 })
     }
 
-    // Cliente solo para auth (signInWithPassword cambia su estado interno al JWT del usuario)
-    const sbAuth = getSupabase()
+    // Login con anon key: devuelve el JWT (access_token) del usuario.
+    const sbAuth = getAnonSupabase()
     const { data: authData, error: authError } = await sbAuth.auth.signInWithPassword({ email, password })
 
-    if (authError || !authData.user) {
+    if (authError || !authData.user || !authData.session) {
       return NextResponse.json({ error: 'Correo o contraseña incorrectos' }, { status: 401 })
     }
 
     const userId = authData.user.id
+    const accessToken = authData.session.access_token
+    const refreshToken = authData.session.refresh_token
 
-    // Cliente fresco con service role key para queries de DB (no tiene sesión de usuario)
-    const sb = getSupabase()
+    // Cliente autenticado con el JWT recién obtenido (sujeto a RLS).
+    const sb = supabaseWithToken(accessToken)
+
     const { data: miembro, error: miembroError } = await sb
       .from('congregacion_miembros')
-      .select('congregacion_id')
+      .select('congregacion_id, rol')
       .eq('user_id', userId)
       .maybeSingle()
 
@@ -47,27 +44,18 @@ export async function POST(request: NextRequest) {
 
     const congregacionId = miembro.congregacion_id as string
 
-    // Verificar que el token de licencia de esta congregación siga activo
-    const { data: tokenRow } = await sb
-      .from('tokens')
-      .select('active')
-      .eq('congregacion_id', congregacionId)
-      .maybeSingle()
-
-    if (tokenRow && !tokenRow.active) {
+    // Verificar que la licencia de esta congregación siga activa (RPC SECURITY DEFINER).
+    const { data: activa } = await sb.rpc('licencia_activa')
+    if (activa === false) {
       return NextResponse.json({ error: 'El acceso a esta congregación fue suspendido. Contactá al administrador.' }, { status: 403 })
     }
-
-    const { data: miembroRol } = await sb
-      .from('congregacion_miembros')
-      .select('rol')
-      .eq('user_id', userId)
-      .maybeSingle()
 
     const response = NextResponse.json({ ok: true })
     response.cookies.set('user_id', userId, COOKIE_OPTS)
     response.cookies.set('congregation_id', congregacionId, COOKIE_OPTS)
-    response.cookies.set('user_role', (miembroRol?.rol as string) ?? 'colaborador', { ...COOKIE_OPTS, httpOnly: false })
+    response.cookies.set('user_role', (miembro.rol as string) ?? 'colaborador', { ...COOKIE_OPTS, httpOnly: false })
+    response.cookies.set('sb_access_token', accessToken, COOKIE_OPTS)
+    response.cookies.set('sb_refresh_token', refreshToken, COOKIE_OPTS)
     return response
   } catch (err) {
     return NextResponse.json({ error: `Error interno: ${String(err)}` }, { status: 500 })

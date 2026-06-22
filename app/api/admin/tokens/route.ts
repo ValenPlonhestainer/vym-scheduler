@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { getSupabase } from '@/lib/supabase'
+import { getServiceSupabase } from '@/lib/supabase'
 
 function checkAdmin() {
   const adminAuth = cookies().get('admin_auth')?.value
@@ -9,7 +9,7 @@ function checkAdmin() {
 
 export async function GET() {
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const supabase = getSupabase()
+  const supabase = getServiceSupabase()
   const { data } = await supabase
     .from('tokens')
     .select('id, token, congregation_name, active, created_at, congregacion_id')
@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const supabase = getSupabase()
+  const supabase = getServiceSupabase()
   const body = await request.json().catch(() => ({}))
   const { congregation_name, token } = body
 

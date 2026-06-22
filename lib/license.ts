@@ -3,29 +3,16 @@ import { readFileSync, writeFileSync, existsSync } from 'fs'
 import https from 'https'
 import path from 'path'
 
-function httpsGet(url: string, headers: Record<string, string>, timeoutMs: number): Promise<{ status: number; body: string }> {
+function httpsPost(url: string, headers: Record<string, string>, body: string, timeoutMs: number): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url)
     const req = https.request(
-      { hostname: parsed.hostname, path: parsed.pathname + parsed.search, method: 'GET', headers },
+      { hostname: parsed.hostname, path: parsed.pathname + parsed.search, method: 'POST', headers },
       (res) => {
         let data = ''
         res.on('data', (chunk: Buffer) => { data += chunk.toString() })
         res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }))
       }
-    )
-    req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')) })
-    req.on('error', reject)
-    req.end()
-  })
-}
-
-function httpsPatch(url: string, headers: Record<string, string>, body: string, timeoutMs: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url)
-    const req = https.request(
-      { hostname: parsed.hostname, path: parsed.pathname + parsed.search, method: 'PATCH', headers },
-      (res) => { res.resume(); res.on('end', resolve) }
     )
     req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')) })
     req.on('error', reject)
@@ -36,7 +23,7 @@ function httpsPatch(url: string, headers: Record<string, string>, body: string, 
 
 const APP_SALT = 'VyMScheduler-2024-salt'
 const SUPABASE_URL = process.env.SUPABASE_URL!
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY!
 
 export interface LicensePayload {
   token: string
@@ -125,20 +112,21 @@ export async function validateAndRenewLicense(
   licensePath: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const authHeaders = {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-    }
-
-    const getUrl = `${SUPABASE_URL}/rest/v1/tokens?token=eq.${encodeURIComponent(token)}&select=active,congregation_name,license_duration_days`
-    const res = await httpsGet(getUrl, authHeaders, 8000)
+    // RPC SECURITY DEFINER: valida el token y, si está activo, refresca
+    // last_renewed_at internamente. Se llama con la anon key (pública).
+    const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/validar_renovar_licencia`
+    const res = await httpsPost(
+      rpcUrl,
+      { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      JSON.stringify({ p_token: token }),
+      8000
+    )
 
     if (res.status < 200 || res.status >= 300) return { ok: false, error: 'Error al conectar con el servidor' }
 
-    const rows = JSON.parse(res.body) as Array<{ active: boolean; congregation_name: string; license_duration_days: number }>
-    if (!rows.length) return { ok: false, error: 'Token no encontrado' }
-
+    const rows = JSON.parse(res.body) as Array<{ found: boolean; active: boolean; congregation_name: string; license_duration_days: number }>
     const row = rows[0]
+    if (!row || !row.found) return { ok: false, error: 'Token no encontrado' }
     if (!row.active) return { ok: false, error: 'Este token ha sido desactivado' }
 
     const durationDays = row.license_duration_days ?? 30
@@ -149,10 +137,6 @@ export async function validateAndRenewLicense(
       issuedAt: now,
       expiresAt: now + durationDays * 24 * 60 * 60 * 1000,
     })
-
-    const patchUrl = `${SUPABASE_URL}/rest/v1/tokens?token=eq.${encodeURIComponent(token)}`
-    const patchBody = JSON.stringify({ last_renewed_at: new Date(now).toISOString() })
-    await httpsPatch(patchUrl, { ...authHeaders, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, patchBody, 8000)
 
     return { ok: true }
   } catch (e) {

@@ -5,6 +5,8 @@ import { Toaster } from '@/components/ui/toaster'
 import { Navigation } from '@/components/navigation'
 import { LayoutWrapper } from '@/components/layout-wrapper'
 import { ThemeProvider } from '@/components/theme-provider'
+import { SessionGuard } from '@/components/session-guard'
+import { UpdateDialog } from '@/components/update-dialog'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -25,6 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navigation />
           <LayoutWrapper>{children}</LayoutWrapper>
           <Toaster />
+          <SessionGuard />
+          <UpdateDialog />
         </ThemeProvider>
       </body>
     </html>

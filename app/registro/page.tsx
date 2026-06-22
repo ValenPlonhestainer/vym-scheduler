@@ -86,7 +86,7 @@ export default function RegistroPage() {
         <p className="text-xs text-muted-foreground text-center">
           {modo === 'owner'
             ? 'Usá el token de licencia que te fue asignado para crear la cuenta de tu congregación.'
-            : 'Usá el código de invitación que te compartió el organizador de tu congregación.'}
+            : 'Usá el código de invitación que te compartió el organizador de tu congregación para ayudar como colaborador.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

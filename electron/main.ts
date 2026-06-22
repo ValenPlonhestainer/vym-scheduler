@@ -20,7 +20,8 @@
   } catch { /* ignorar */ }
 })()
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { createServer } from 'http'
 import { parse } from 'url'
 import path from 'path'
@@ -32,6 +33,15 @@ const PORT = 3721
 
 let mainWindow: BrowserWindow | null = null
 let isStartingUp = true
+let _updateLogStream: fs.WriteStream | null = null
+// Estado del auto-update bufferizado: el renderer puede tardar en montar y
+// perderse el evento update-available. Lo guardamos para que lo consulte al cargar.
+let pendingUpdate: { stage: 'available'; version: string } | { stage: 'downloaded' } | null = null
+
+function updateLog(msg: string) {
+  const line = `[${new Date().toISOString()}] [updater] ${msg}\n`
+  _updateLogStream?.write(line)
+}
 
 async function startNextServer(logStream: fs.WriteStream): Promise<void> {
   const dir = app.isPackaged
@@ -112,6 +122,69 @@ app.on('window-all-closed', () => {
   }
 })
 
+function setupAutoUpdater() {
+  // No descargar automáticamente: el usuario confirma desde el popup.
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+  autoUpdater.logger = {
+    info: (m: unknown) => updateLog(`info: ${String(m)}`),
+    warn: (m: unknown) => updateLog(`warn: ${String(m)}`),
+    error: (m: unknown) => updateLog(`error: ${String(m)}`),
+    debug: (m: unknown) => updateLog(`debug: ${String(m)}`),
+  }
+
+  autoUpdater.on('checking-for-update', () => updateLog('Verificando actualizaciones (GitHub)...'))
+  autoUpdater.on('update-not-available', () => updateLog('Sin actualizaciones.'))
+  autoUpdater.on('error', (err) => updateLog(`Error en auto-updater: ${err?.message ?? String(err)}`))
+
+  autoUpdater.on('update-available', (info) => {
+    updateLog(`Actualización disponible: v${info.version}`)
+    pendingUpdate = { stage: 'available', version: info.version }
+    mainWindow?.webContents.send('update-available', { version: info.version })
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('download-progress', { percent: Math.round(progress.percent) })
+  })
+
+  autoUpdater.on('update-downloaded', () => {
+    updateLog('Descarga completada, lista para instalar.')
+    pendingUpdate = { stage: 'downloaded' }
+    mainWindow?.webContents.send('update-downloaded')
+  })
+
+  // El renderer consulta esto al montar, por si el evento se emitió antes de
+  // que React registrara los listeners (race en el arranque).
+  ipcMain.handle('get-update-status', () => pendingUpdate)
+
+  ipcMain.on('confirm-update-download', () => {
+    updateLog('Descargando actualización...')
+    autoUpdater.downloadUpdate().catch((err: Error) => {
+      updateLog(`Error descargando actualización: ${err.message}`)
+    })
+  })
+
+  ipcMain.on('show-update-notification', () => {
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'VyM Scheduler',
+        body: 'Actualizando el programa... Se reiniciará automáticamente en unos segundos.',
+      }).show()
+    }
+  })
+
+  ipcMain.on('install-update', () => {
+    // isSilent=true, isForceRunAfter=true → reinstala en silencio y reabre la app.
+    autoUpdater.quitAndInstall(true, true)
+  })
+
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch((err: Error) => {
+      updateLog(`Error verificando actualizaciones: ${err.message}`)
+    })
+  }
+}
+
 app.whenReady().then(async () => {
   process.env.VYM_USER_DATA = app.getPath('userData')
 
@@ -121,6 +194,8 @@ app.whenReady().then(async () => {
     await startNextServer(logStream)
     await createMainWindow()
     isStartingUp = false
+    _updateLogStream = logStream
+    setupAutoUpdater()
   } catch (err) {
     logStream.write(`[fatal] ${String(err)}\n`)
     dialog.showErrorBox(

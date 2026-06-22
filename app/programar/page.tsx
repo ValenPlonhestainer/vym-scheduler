@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, CheckCircle2, AlertCircle, RefreshCw, Calendar, Sun, FileDown } from 'lucide-react'
+import { Plus, Loader2, CheckCircle2, AlertCircle, RefreshCw, Calendar, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -74,6 +74,7 @@ export default function ProgramarPage() {
   const [incompletoOpen, setIncompletoOpen] = useState(false)
   const [incompletoMensaje, setIncompletoMensaje] = useState('')
   const [incompletoAccion, setIncompletoAccion] = useState<() => void>(() => {})
+  const [incompletoGuardarIgual, setIncompletoGuardarIgual] = useState<(() => void) | null>(null)
   const [duplicadoOpen, setDuplicadoOpen] = useState(false)
   const [duplicadoId, setDuplicadoId] = useState('')
   const [duplicadoTipo, setDuplicadoTipo] = useState<'semana' | 'fds'>('semana')
@@ -222,10 +223,15 @@ export default function ProgramarPage() {
     setTimeout(() => setSemana(p => ({ ...p, fecha: f })), 50)
   }
 
-  const lsKeys = ['vym_prog_semana','vym_prog_asigs','vym_prog_fds','vym_prog_asigsfds','vym_prog_tipo','vym_prog_salaaux']
-
-  async function handleGuardarSemana() {
+  async function handleGuardarSemana(ignorarOtra = false) {
     if (!semana.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
+    if (!ignorarOtra && semanaFDS.fecha && !fdsSaved) {
+      setIncompletoMensaje('La reunión de fin de semana también tiene datos sin guardar.')
+      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo('fds') })
+      setIncompletoGuardarIgual(() => () => handleGuardarSemana(true))
+      setIncompletoOpen(true)
+      return
+    }
     const fechaNorm = semana.fecha.replace(/-/g, '/')
     const existente = todasSemanas.find(s => s.id !== semana.id && s.fecha.replace(/-/g, '/') === fechaNorm)
     if (existente) {
@@ -267,8 +273,15 @@ export default function ProgramarPage() {
     }
   }
 
-  async function handleGuardarFDS() {
+  async function handleGuardarFDS(ignorarOtra = false) {
     if (!semanaFDS.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
+    if (!ignorarOtra && semana.fecha && !semanaSaved) {
+      setIncompletoMensaje('La reunión de entre semana también tiene datos sin guardar.')
+      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo('semana') })
+      setIncompletoGuardarIgual(() => () => handleGuardarFDS(true))
+      setIncompletoOpen(true)
+      return
+    }
     const fechaNorm = semanaFDS.fecha.replace(/-/g, '/')
     const existente = todasSemanasFDS.find(s => s.id !== semanaFDS.id && s.fecha.replace(/-/g, '/') === fechaNorm)
     if (existente) {
@@ -312,21 +325,7 @@ export default function ProgramarPage() {
     }
   }
 
-  function handleExportar() {
-    const otroTieneFecha = tipo === 'semana' ? !!semanaFDS.fecha : !!semana.fecha
-    const otroGuardado = tipo === 'semana' ? fdsSaved : semanaSaved
-    if (otroTieneFecha && !otroGuardado) {
-      const reunionFaltante = tipo === 'semana' ? 'fin de semana' : 'entre semana'
-      setIncompletoMensaje(`Hay datos en la reunión de ${reunionFaltante} que todavía no fueron guardados.`)
-      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo(tipo === 'semana' ? 'fds' : 'semana') })
-      setIncompletoOpen(true)
-      return
-    }
-    lsKeys.forEach(k => localStorage.removeItem(k))
-    router.push('/exportar')
-  }
-
-  const secciones = agruparPorSeccion()
+const secciones = agruparPorSeccion()
   const numEstudiantes = semana.numEstudiantes
     ?? ((semana.titulos as Record<string, string>)?.estudiante_4 ? 4
       : (semana.titulos as Record<string, string>)?.estudiante_3 ? 3
@@ -376,21 +375,13 @@ export default function ProgramarPage() {
         <h1 className="text-2xl font-bold text-foreground flex-1">Nueva reunión</h1>
         <div className="flex items-center gap-2">
           <Button
-            onClick={tipo === 'semana' ? handleGuardarSemana : handleGuardarFDS}
+            onClick={() => tipo === 'semana' ? handleGuardarSemana() : handleGuardarFDS()}
             disabled={saving}
             size="sm"
             variant="outline"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Guardar
-          </Button>
-          <Button
-            onClick={handleExportar}
-            disabled={saving}
-            size="sm"
-          >
-            <FileDown className="h-4 w-4" />
-            Exportar PDF
           </Button>
         </div>
       </div>
@@ -672,15 +663,15 @@ export default function ProgramarPage() {
       <Dialog open={incompletoOpen} onOpenChange={setIncompletoOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Reunión sin programar</DialogTitle>
+            <DialogTitle>Otra reunión sin guardar</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{incompletoMensaje}</p>
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => { lsKeys.forEach(k => localStorage.removeItem(k)); router.push('/exportar') }}>
-              Ir a exportar igual
+            <Button variant="outline" onClick={() => { setIncompletoOpen(false); incompletoGuardarIgual?.() }}>
+              Guardar solo esta
             </Button>
             <Button onClick={incompletoAccion}>
-              Completar ahora
+              Ir a la otra reunión
             </Button>
           </DialogFooter>
         </DialogContent>

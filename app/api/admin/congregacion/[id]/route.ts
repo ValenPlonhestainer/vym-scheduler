@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { getSupabase } from '@/lib/supabase'
+import { getServiceSupabase } from '@/lib/supabase'
 
 function checkAdmin() {
   const adminAuth = cookies().get('admin_auth')?.value
@@ -11,7 +11,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   if (!checkAdmin()) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const congId = params.id
-  const sb = getSupabase()
+  const sb = getServiceSupabase()
 
   const [{ data: congregacion }, { data: hermanos }, { data: semanas }, { data: semanasFDS }, { data: miembros }] =
     await Promise.all([

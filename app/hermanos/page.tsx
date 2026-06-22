@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { HermanoDialog } from '@/components/hermanos/hermano-dialog'
 import { HermanoHistorial } from '@/components/hermanos/hermano-historial'
 import { getHermanos, deleteHermano } from '@/lib/actions'
@@ -22,6 +23,7 @@ export default function HermanosPage() {
   const [historialHermano, setHistorialHermano] = useState<Hermano | null>(null)
   const [mostrarInactivos, setMostrarInactivos] = useState(false)
   const [busqueda, setBusqueda] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Hermano | null>(null)
   const { toast } = useToast()
 
   function load() {
@@ -42,11 +44,13 @@ export default function HermanosPage() {
     setDialogOpen(true)
   }
 
-  async function handleDelete(h: Hermano) {
-    if (!confirm(`¿Eliminar a ${h.nombre}? Se borrarán todas sus asignaciones.`)) return
-    await deleteHermano(h.id)
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    const nombre = deleteTarget.nombre
+    setDeleteTarget(null)
+    await deleteHermano(deleteTarget.id)
     load()
-    toast({ title: 'Hermano eliminado', description: h.nombre })
+    toast({ title: 'Hermano eliminado', description: nombre })
   }
 
   function handleSaved() {
@@ -133,7 +137,7 @@ export default function HermanosPage() {
                   key={h.id}
                   hermano={h}
                   onEdit={() => handleEdit(h)}
-                  onDelete={() => handleDelete(h)}
+                  onDelete={() => setDeleteTarget(h)}
                   onHistorial={() => setHistorialHermano(h)}
                 />
               ))}
@@ -158,7 +162,7 @@ export default function HermanosPage() {
                   key={h.id}
                   hermano={h}
                   onEdit={() => handleEdit(h)}
-                  onDelete={() => handleDelete(h)}
+                  onDelete={() => setDeleteTarget(h)}
                   onHistorial={() => setHistorialHermano(h)}
                 />
               ))}
@@ -177,6 +181,22 @@ export default function HermanosPage() {
         hermanos={hermanos}
         onSaved={handleSaved}
       />
+
+      <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar hermano</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            ¿Eliminar a <span className="font-medium text-foreground">{deleteTarget?.nombre}</span>?{' '}
+            Se borrarán todas sus asignaciones.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Eliminar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {historialHermano && (
         <HermanoHistorial

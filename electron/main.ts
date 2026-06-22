@@ -20,27 +20,111 @@
   } catch { /* ignorar */ }
 })()
 
-import { app, BrowserWindow, dialog, ipcMain, Notification } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { createServer } from 'http'
 import { parse } from 'url'
 import path from 'path'
 import fs from 'fs'
+import https from 'https'
+import os from 'os'
 
 console.log('[VyM] main.ts cargado, process.type:', process.type, 'electron:', process.versions.electron)
 
 const PORT = 3721
+
+// Provider de updates en Cloudflare R2 (mismo bucket que electron-updater).
+const R2_BASE = 'https://pub-ea9f59664d6d4742a8da9c6c3db561fe.r2.dev'
+const LATEST_YML_URL = `${R2_BASE}/latest.yml`
+// Página de descargas (Cloudflare Pages). Debe coincidir con el proyecto desplegado.
+// El flujo Win7 abre esta página en el navegador del sistema para bajar el .exe.
+const DOWNLOAD_PAGE_URL = 'https://vym-scheduler.pages.dev'
 
 let mainWindow: BrowserWindow | null = null
 let isStartingUp = true
 let _updateLogStream: fs.WriteStream | null = null
 // Estado del auto-update bufferizado: el renderer puede tardar en montar y
 // perderse el evento update-available. Lo guardamos para que lo consulte al cargar.
-let pendingUpdate: { stage: 'available'; version: string } | { stage: 'downloaded' } | null = null
+let pendingUpdate:
+  | { stage: 'available'; version: string }
+  | { stage: 'downloaded' }
+  | { stage: 'manual'; version: string; downloadUrl: string }
+  | null = null
 
 function updateLog(msg: string) {
   const line = `[${new Date().toISOString()}] [updater] ${msg}\n`
   _updateLogStream?.write(line)
+}
+
+// Windows 7 = NT 6.1. En Win7 sin parchear el TLS de Chromium no llega a R2,
+// así que ese parque usa el flujo híbrido (chequeo por Node https + navegador).
+// VYM_FORCE_WIN7=1 fuerza la rama para testear sin un Win7 real.
+function isWindows7(): boolean {
+  if (process.env.VYM_FORCE_WIN7 === '1') return true
+  return process.platform === 'win32' && os.release().startsWith('6.1')
+}
+
+// GET por el módulo https de Node (OpenSSL + CA bundle propio, independiente
+// del almacén de certificados de Windows). Mismo patrón que lib/license.ts,
+// que ya funciona en Win7.
+function httpsGet(url: string, timeoutMs: number): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const req = https.request(
+      { hostname: parsed.hostname, path: parsed.pathname + parsed.search, method: 'GET' },
+      (res) => {
+        let data = ''
+        res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }))
+      }
+    )
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')) })
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+// Compara versiones semver simples (a.b.c). >0 si a>b, <0 si a<b, 0 iguales.
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map((n) => parseInt(n, 10) || 0)
+  const pb = b.split('.').map((n) => parseInt(n, 10) || 0)
+  const len = Math.max(pa.length, pb.length)
+  for (let i = 0; i < len; i++) {
+    const da = pa[i] ?? 0
+    const db = pb[i] ?? 0
+    if (da !== db) return da - db
+  }
+  return 0
+}
+
+// Chequeo de update para Win7: baja solo latest.yml (chico) por Node https,
+// parsea la versión y, si hay una nueva, avisa al renderer para que ofrezca
+// abrir la página de descargas en el navegador.
+async function checkUpdateWin7(): Promise<void> {
+  try {
+    updateLog('Verificando actualizaciones (Win7, Node https)...')
+    const res = await httpsGet(LATEST_YML_URL, 8000)
+    if (res.status < 200 || res.status >= 300) {
+      updateLog(`Win7: latest.yml respondió ${res.status}`)
+      return
+    }
+    const m = res.body.match(/^version:\s*(.+)$/m)
+    if (!m) {
+      updateLog('Win7: no se pudo parsear "version" de latest.yml')
+      return
+    }
+    const remote = m[1].trim().replace(/^["']|["']$/g, '')
+    const current = app.getVersion()
+    if (compareVersions(remote, current) > 0) {
+      updateLog(`Win7: actualización disponible v${remote} (actual v${current})`)
+      pendingUpdate = { stage: 'manual', version: remote, downloadUrl: DOWNLOAD_PAGE_URL }
+      mainWindow?.webContents.send('update-available-manual', { version: remote, downloadUrl: DOWNLOAD_PAGE_URL })
+    } else {
+      updateLog(`Win7: sin actualizaciones (remota v${remote}, actual v${current})`)
+    }
+  } catch (err) {
+    updateLog(`Win7: error verificando latest.yml: ${err instanceof Error ? err.message : String(err)}`)
+  }
 }
 
 async function startNextServer(logStream: fs.WriteStream): Promise<void> {
@@ -133,7 +217,7 @@ function setupAutoUpdater() {
     debug: (m: unknown) => updateLog(`debug: ${String(m)}`),
   }
 
-  autoUpdater.on('checking-for-update', () => updateLog('Verificando actualizaciones (GitHub)...'))
+  autoUpdater.on('checking-for-update', () => updateLog('Verificando actualizaciones (R2)...'))
   autoUpdater.on('update-not-available', () => updateLog('Sin actualizaciones.'))
   autoUpdater.on('error', (err) => updateLog(`Error en auto-updater: ${err?.message ?? String(err)}`))
 
@@ -178,10 +262,29 @@ function setupAutoUpdater() {
     autoUpdater.quitAndInstall(true, true)
   })
 
-  if (app.isPackaged) {
-    autoUpdater.checkForUpdates().catch((err: Error) => {
-      updateLog(`Error verificando actualizaciones: ${err.message}`)
+  // El preload expone getVersion() pero faltaba el handler en main.
+  ipcMain.handle('get-version', () => app.getVersion())
+
+  // Flujo Win7: abrir la página de descargas en el navegador del sistema,
+  // que sí resuelve el TLS de Cloudflare y baja el .exe.
+  ipcMain.on('open-download-page', () => {
+    shell.openExternal(DOWNLOAD_PAGE_URL).catch((err: Error) => {
+      updateLog(`Error abriendo página de descargas: ${err.message}`)
     })
+  })
+
+  // Enfoque A: ramificar por SO ANTES de tocar la red (determinístico, no
+  // depende de detectar el fallo silencioso de TLS en Win7).
+  // VYM_FORCE_WIN7=1 permite testear el flujo híbrido fuera de package.
+  const shouldCheck = app.isPackaged || process.env.VYM_FORCE_WIN7 === '1'
+  if (shouldCheck) {
+    if (isWindows7()) {
+      checkUpdateWin7()
+    } else {
+      autoUpdater.checkForUpdates().catch((err: Error) => {
+        updateLog(`Error verificando actualizaciones: ${err.message}`)
+      })
+    }
   }
 }
 

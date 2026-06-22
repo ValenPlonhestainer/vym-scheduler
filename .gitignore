@@ -6,7 +6,10 @@ node_modules/
 # Next.js
 .next/
 out/
-build/
+build/*
+# ...pero el script del instalador SÍ se versiona (se perdió una vez por estar ignorado).
+# Se ignora el contenido de build/ (no el dir) para poder re-incluir este archivo.
+!build/installer.nsh
 
 # Build artifacts (instaladores y output compilado de Electron)
 dist/

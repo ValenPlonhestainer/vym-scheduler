@@ -8,6 +8,7 @@ type UpdateState =
   | { stage: 'downloading'; percent: number }
   | { stage: 'ready' }
   | { stage: 'installing' }
+  | { stage: 'manual'; version: string }
 
 export function UpdateDialog() {
   const [update, setUpdate] = useState<UpdateState>({ stage: 'idle' })
@@ -28,6 +29,11 @@ export function UpdateDialog() {
       setUpdate({ stage: 'ready' })
     })
 
+    // Flujo híbrido Win7: aviso de versión nueva, la descarga la hace el navegador.
+    api.onManualUpdateAvailable?.((info: { version: string; downloadUrl: string }) => {
+      setUpdate({ stage: 'manual', version: info.version })
+    })
+
     // Por si el evento se emitió antes de que montáramos: consultar el estado
     // actual del updater al cargar.
     api.getUpdateStatus?.().then((s: { stage: string; version?: string } | null) => {
@@ -36,6 +42,7 @@ export function UpdateDialog() {
         if (prev.stage !== 'idle') return prev
         if (s.stage === 'available' && s.version) return { stage: 'available', version: s.version }
         if (s.stage === 'downloaded') return { stage: 'ready' }
+        if (s.stage === 'manual' && s.version) return { stage: 'manual', version: s.version }
         return prev
       })
     }).catch(() => {})
@@ -57,6 +64,10 @@ export function UpdateDialog() {
     }, 2500)
   }
 
+  function handleOpenDownloadPage() {
+    ;(window as any).electronAPI?.openDownloadPage?.()
+  }
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
@@ -76,6 +87,25 @@ export function UpdateDialog() {
               className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
             >
               Actualizar
+            </button>
+          </>
+        )}
+
+        {update.stage === 'manual' && (
+          <>
+            <div className="text-3xl mb-4 text-center">🔄</div>
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1 text-center">
+              Actualización disponible
+            </h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 text-center">
+              La versión <span className="font-medium text-zinc-700 dark:text-zinc-300">{update.version}</span> está
+              disponible. Se abrirá la página de descargas en tu navegador para bajar el instalador.
+            </p>
+            <button
+              onClick={handleOpenDownloadPage}
+              className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Descargar
             </button>
           </>
         )}

@@ -25,4 +25,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   confirmDownload: () => ipcRenderer.send('confirm-update-download'),
   showUpdateNotification: () => ipcRenderer.send('show-update-notification'),
   installUpdate: () => ipcRenderer.send('install-update'),
+
+  // Auto-update híbrido (Win7): aviso en-app + descarga por el navegador.
+  onManualUpdateAvailable: (cb: (info: { version: string; downloadUrl: string }) => void) => {
+    ipcRenderer.on('update-available-manual', (_e, info) => cb(info))
+  },
+  openDownloadPage: () => ipcRenderer.send('open-download-page'),
 })

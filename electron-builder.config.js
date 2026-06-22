@@ -38,6 +38,8 @@ module.exports = {
     shortcutName: 'VyM Scheduler',
     installerIcon: 'build/icon.ico',
     uninstallerIcon: 'build/icon.ico',
+    // Checkbox "Crear acceso directo en el escritorio" en la finish page.
+    include: 'build/installer.nsh',
   },
 
   asarUnpack: [

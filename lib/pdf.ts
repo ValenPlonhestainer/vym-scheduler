@@ -63,7 +63,10 @@ export function generarPDFMensual(
   congregacion: string,
   mesAnio: string,
   semanasFDS: SemanaFDS[] = [],
-  todasAsignacionesFDS: AsignacionFDS[] = []
+  todasAsignacionesFDS: AsignacionFDS[] = [],
+  // Todas las semanas entre semana (cualquier mes), para detectar FDS huérfanas
+  // considerando semanas que cruzan de mes. Por defecto, las del mes.
+  todasLasSemanas: Semana[] = semanas
 ) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
@@ -459,7 +462,8 @@ export function generarPDFMensual(
     const seen = new Map<number, SemanaFDS>()
     for (const fds of semanasFDS) {
       const key = semanaLunes(fds.fecha)
-      if (!semanas.some(s => semanaLunes(s.fecha) === key) && !seen.has(key)) {
+      // Huérfana solo si NO hay reunión entre semana en su semana ISO (en ningún mes).
+      if (!todasLasSemanas.some(s => semanaLunes(s.fecha) === key) && !seen.has(key)) {
         seen.set(key, fds)
       }
     }

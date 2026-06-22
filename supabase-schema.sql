@@ -81,7 +81,17 @@ CREATE TABLE IF NOT EXISTS asignaciones_fds (
   hermano_id       uuid NOT NULL REFERENCES hermanos(id) ON DELETE CASCADE
 );
 
+-- ── Sugerencias ───────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sugerencias (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  congregation_id  uuid NOT NULL REFERENCES congregations(id) ON DELETE CASCADE,
+  texto            text NOT NULL,
+  created_by       uuid,
+  created_at       timestamptz NOT NULL DEFAULT now()
+);
+
 -- ── Índices de performance ────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_sugerencias_cong   ON sugerencias(congregation_id);
 CREATE INDEX IF NOT EXISTS idx_hermanos_cong      ON hermanos(congregation_id);
 CREATE INDEX IF NOT EXISTS idx_semanas_cong       ON semanas(congregation_id);
 CREATE INDEX IF NOT EXISTS idx_asignaciones_cong  ON asignaciones(congregation_id);

@@ -102,7 +102,10 @@ export default function ExportarPage() {
     const seen = new Map<number, SemanaFDS>()
     for (const fds of fdsSemanasDelMes) {
       const key = semanaLunes(fds.fecha)
-      const tieneContraparte = semanasMes.some(s => semanaLunes(s.fecha) === key)
+      // Contraparte = reunión entre semana en la MISMA semana ISO, de cualquier mes.
+      // Si la reunión entre semana cae en el mes anterior (semana que cruza de mes),
+      // la FDS se muestra con ella en ese mes y NO como huérfana acá.
+      const tieneContraparte = semanas.some(s => semanaLunes(s.fecha) === key)
       if (!tieneContraparte && !seen.has(key)) seen.set(key, fds)
     }
     return [...seen.values()]
@@ -116,7 +119,7 @@ export default function ExportarPage() {
 
   function handlePDF() {
     const mesLabel = getMesLabel(mesSeleccionado)
-    generarPDFMensual(semanasMes, hermanos, asignaciones, congregacion, mesLabel, semanasFDS, asignacionesFDS)
+    generarPDFMensual(semanasMes, hermanos, asignaciones, congregacion, mesLabel, semanasFDS, asignacionesFDS, semanas)
   }
 
   function handlePrint() {

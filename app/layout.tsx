@@ -7,6 +7,7 @@ import { LayoutWrapper } from '@/components/layout-wrapper'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SessionGuard } from '@/components/session-guard'
 import { UpdateDialog } from '@/components/update-dialog'
+import { Sugerencias } from '@/components/sugerencias'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Toaster />
           <SessionGuard />
           <UpdateDialog />
+          <Sugerencias />
         </ThemeProvider>
       </body>
     </html>

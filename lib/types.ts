@@ -17,6 +17,7 @@ export interface Privilegios {
   lector_estudio: boolean
   presidente_fin_semana: boolean
   lector_atalaya: boolean
+  microfonos: boolean
 }
 
 export interface Hermano {

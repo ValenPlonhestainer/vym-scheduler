@@ -18,7 +18,8 @@ export function SelectorMicrofono({ label, hermanos, value, onChange }: Props) {
   const selectedHermano = hermanos.find(h => h.id === value)
 
   const items = hermanos
-    .filter(h => h.activo && h.genero === 'masculino')
+    // Hombres: siempre elegibles. Hermanas: solo con el privilegio de micrófonos activo.
+    .filter(h => h.activo && (h.genero === 'masculino' || h.privilegios?.microfonos === true))
     .map(h => ({ hermano: h, ultima: null, yaAsignado: false }))
 
   return (

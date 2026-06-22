@@ -48,6 +48,7 @@ const PRIVILEGIOS_CONFIG: PrivilegioConfig[] = [
   { key: 'lector_estudio',       label: 'Lector del Estudio Bíblico',            rolesVisibles: ['anciano', 'siervo', 'publicador'],                 seccion: 'semana' },
   { key: 'presidente_fin_semana',label: 'Presidente de la reunión',              rolesVisibles: ['anciano', 'siervo'],                               seccion: 'fds'    },
   { key: 'lector_atalaya',       label: 'Lector de La Atalaya',                  rolesVisibles: ['anciano', 'siervo', 'publicador'],                 seccion: 'fds'    },
+  { key: 'microfonos',           label: 'Micrófonos',                            rolesVisibles: ['hermana'],                                         seccion: 'semana' },
 ]
 
 const defaultForm = (): Omit<Hermano, 'id'> => ({
@@ -74,7 +75,8 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
             rol: hermano.rol,
             activo: hermano.activo,
             notas: hermano.notas ?? '',
-            privilegios: hermano.privilegios ?? getPrivilegiosDefecto(hermano.rol),
+            // Backfill de defaults para datos viejos que no tengan campos nuevos (ej: microfonos)
+            privilegios: { ...getPrivilegiosDefecto(hermano.rol), ...hermano.privilegios },
           }
         : defaultForm()
       )

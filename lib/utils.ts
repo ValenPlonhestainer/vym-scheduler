@@ -58,6 +58,7 @@ export function getPrivilegiosDefecto(rol: Rol): Privilegios {
     estudiante_aux_conversacion: false, estudiante_aux_discurso: false,
     ayudante_estudiante: false, partes_vida_cristiana: false, presidente_reunion: false,
     conductor_estudio: false, lector_estudio: false, presidente_fin_semana: false, lector_atalaya: false,
+    microfonos: false,
     ...privs,
   })
   switch (rol) {

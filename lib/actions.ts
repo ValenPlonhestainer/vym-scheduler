@@ -130,6 +130,26 @@ export async function deleteHermano(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+// ── Sugerencias ───────────────────────────────────────────────────
+
+export async function saveSugerencia(texto: string): Promise<{ error?: string }> {
+  try {
+    const limpio = texto.trim()
+    if (!limpio) return { error: 'La sugerencia está vacía' }
+    const congId = getCongId()
+    const sb = await getAuthedSupabase()
+    const { error } = await sb.from('sugerencias').insert({
+      id: randomUUID(),
+      congregation_id: congId,
+      texto: limpio.slice(0, 2000),
+    })
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
+  }
+}
+
 // ── Semanas entre semana ──────────────────────────────────────────
 
 export async function getSemanas(): Promise<Semana[]> {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X, Sun, Moon, Eye } from 'lucide-react'
+import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X, Sun, Moon, Eye, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +19,13 @@ type TokenRow = {
   active: boolean
   created_at: string
   congregacion_id: string | null
+}
+
+type SugerenciaRow = {
+  id: string
+  texto: string
+  created_at: string
+  congregacion: string
 }
 
 function generateToken(name: string): string {
@@ -45,6 +52,9 @@ export default function AdminPage() {
   const [deleteTarget, setDeleteTarget] = useState<TokenRow | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  const [sugerencias, setSugerencias] = useState<SugerenciaRow[]>([])
+  const [loadingSug, setLoadingSug] = useState(true)
+
   async function load() {
     const res = await fetch('/api/admin/tokens')
     if (res.status === 401) { router.push('/admin/login'); return }
@@ -53,7 +63,25 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  async function loadSugerencias() {
+    const res = await fetch('/api/admin/sugerencias')
+    if (res.status === 401) { router.push('/admin/login'); return }
+    const data = await res.json()
+    setSugerencias(data.sugerencias ?? [])
+    setLoadingSug(false)
+  }
+
+  async function handleDescartarSugerencia(id: string) {
+    const res = await fetch(`/api/admin/sugerencias?id=${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setSugerencias(s => s.filter(x => x.id !== id))
+      toast({ title: 'Sugerencia descartada' })
+    } else {
+      toast({ title: 'Error', variant: 'destructive' })
+    }
+  }
+
+  useEffect(() => { load(); loadSugerencias() }, [])
 
   function handleNameChange(name: string) {
     setNewName(name)
@@ -264,6 +292,49 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Sugerencias */}
+      <div className="mt-10 space-y-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          <MessageSquare className="h-4 w-4" />
+          Sugerencias ({sugerencias.length})
+        </h2>
+
+        {loadingSug ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : sugerencias.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">No hay sugerencias todavía</p>
+        ) : (
+          sugerencias.map(s => (
+            <Card key={s.id}>
+              <CardContent className="py-3 px-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <Badge variant="outline" className="text-sky-400 border-sky-700">{s.congregacion}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(s.created_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground whitespace-pre-wrap break-words">{s.texto}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDescartarSugerencia(s.id)}
+                    className="text-muted-foreground hover:text-red-500 px-2 shrink-0"
+                    title="Descartar"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))

@@ -141,19 +141,13 @@ export default function ExportarPage() {
 
   const nombreHermano = (id: string) => hermanos.find(h => h.id === id)?.nombre ?? '—'
 
-  const secColors: Record<string, string> = {
-    tesoros: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40',
-    maestros: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/40',
-    cristiana: 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40',
-    apertura: 'bg-card',
-    cierre: 'bg-card',
-  }
-  const secTitleColors: Record<string, string> = {
-    tesoros: 'text-amber-600 dark:text-amber-400',
-    maestros: 'text-green-600 dark:text-green-400',
-    cristiana: 'text-blue-600 dark:text-blue-400',
-    apertura: 'text-muted-foreground',
-    cierre: 'text-muted-foreground',
+  // Secciones en gris (como las demás); solo un puntito del color que tenían.
+  const secDotColors: Record<string, string> = {
+    tesoros: 'bg-amber-500',
+    maestros: 'bg-green-500',
+    cristiana: 'bg-blue-500',
+    apertura: '',
+    cierre: '',
   }
 
   return (
@@ -244,8 +238,8 @@ export default function ExportarPage() {
               )}
 
               {/* Label reunión entre semana */}
-              <div className="px-4 py-1 bg-muted/20 border-b border-border">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Reunión entre semana</p>
+              <div className="px-4 py-1 bg-blue-900/30 border-b border-border">
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-400">Reunión entre semana</p>
               </div>
 
               <CardContent className="p-0">
@@ -253,8 +247,11 @@ export default function ExportarPage() {
                   const partes = secciones[seccion] ?? []
                   return (
                     <div key={seccion}>
-                      <div className={`px-4 py-1 ${secColors[seccion]} border-b border-border`}>
-                        <p className={`text-xs font-bold uppercase tracking-wide ${secTitleColors[seccion]}`}>
+                      <div className="px-4 py-1 bg-card border-b border-border">
+                        <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          {secDotColors[seccion] && (
+                            <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${secDotColors[seccion]}`} />
+                          )}
                           {SECCION_LABELS[seccion]}
                         </p>
                       </div>
@@ -342,8 +339,11 @@ export default function ExportarPage() {
                   ))}
 
                   {/* Disertación pública */}
-                  <div className="px-4 py-1 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40">
-                    <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">Disertación pública</p>
+                  <div className="px-4 py-1 bg-card border-b border-border">
+                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                      <span className="inline-block h-2 w-2 rounded-full shrink-0 bg-amber-500" />
+                      Disertación pública
+                    </p>
                   </div>
                   {fds.disertacionTitulo && (
                     <div className="px-4 py-1.5 border-b border-border text-sm text-foreground italic">
@@ -360,8 +360,11 @@ export default function ExportarPage() {
                   )}
 
                   {/* Estudio de La Atalaya */}
-                  <div className="px-4 py-1 bg-blue-50 border-b border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40">
-                    <p className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Estudio de La Atalaya</p>
+                  <div className="px-4 py-1 bg-card border-b border-border">
+                    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                      <span className="inline-block h-2 w-2 rounded-full shrink-0 bg-blue-500" />
+                      Estudio de La Atalaya
+                    </p>
                   </div>
                   {fds.cancionIntermedia && (
                     <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
@@ -435,8 +438,11 @@ export default function ExportarPage() {
                   </span>
                 </div>
               ))}
-              <div className="px-4 py-1 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40">
-                <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">Disertación pública</p>
+              <div className="px-4 py-1 bg-card border-b border-border">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  <span className="inline-block h-2 w-2 rounded-full shrink-0 bg-amber-500" />
+                  Disertación pública
+                </p>
               </div>
               {fds.disertacionTitulo && (
                 <div className="px-4 py-1.5 border-b border-border text-sm text-foreground italic">{fds.disertacionTitulo}</div>
@@ -449,8 +455,11 @@ export default function ExportarPage() {
                   </span>
                 </div>
               )}
-              <div className="px-4 py-1 bg-blue-50 border-b border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40">
-                <p className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Estudio de La Atalaya</p>
+              <div className="px-4 py-1 bg-card border-b border-border">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  <span className="inline-block h-2 w-2 rounded-full shrink-0 bg-blue-500" />
+                  Estudio de La Atalaya
+                </p>
               </div>
               {fds.cancionIntermedia && (
                 <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">

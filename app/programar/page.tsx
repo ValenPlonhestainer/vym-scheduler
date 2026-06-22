@@ -69,12 +69,6 @@ export default function ProgramarPage() {
   const [todasAsigsFDS, setTodasAsigsFDS] = useState<Array<AsignacionFDS & { fecha: string }>>([])
   const [todasSemanas, setTodasSemanas] = useState<Semana[]>([])
   const [todasSemanasFDS, setTodasSemanasFDS] = useState<SemanaFDS[]>([])
-  const [semanaSaved, setSemanaSaved] = useState(false)
-  const [fdsSaved, setFdsSaved] = useState(false)
-  const [incompletoOpen, setIncompletoOpen] = useState(false)
-  const [incompletoMensaje, setIncompletoMensaje] = useState('')
-  const [incompletoAccion, setIncompletoAccion] = useState<() => void>(() => {})
-  const [incompletoGuardarIgual, setIncompletoGuardarIgual] = useState<(() => void) | null>(null)
   const [duplicadoOpen, setDuplicadoOpen] = useState(false)
   const [duplicadoId, setDuplicadoId] = useState('')
   const [duplicadoTipo, setDuplicadoTipo] = useState<'semana' | 'fds'>('semana')
@@ -223,15 +217,8 @@ export default function ProgramarPage() {
     setTimeout(() => setSemana(p => ({ ...p, fecha: f })), 50)
   }
 
-  async function handleGuardarSemana(ignorarOtra = false) {
+  async function handleGuardarSemana() {
     if (!semana.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
-    if (!ignorarOtra && semanaFDS.fecha && !fdsSaved) {
-      setIncompletoMensaje('La reunión de fin de semana también tiene datos sin guardar.')
-      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo('fds') })
-      setIncompletoGuardarIgual(() => () => handleGuardarSemana(true))
-      setIncompletoOpen(true)
-      return
-    }
     const fechaNorm = semana.fecha.replace(/-/g, '/')
     const existente = todasSemanas.find(s => s.id !== semana.id && s.fecha.replace(/-/g, '/') === fechaNorm)
     if (existente) {
@@ -264,7 +251,6 @@ export default function ProgramarPage() {
         .map(([parte, hermanoId]) => ({ parte: parte as ParteTipo, hermanoId: hermanoId! }))
       const r2 = await saveAllAsignaciones(s.id, asignArray)
       if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
-      setSemanaSaved(true)
       toast({ title: 'Reunión guardada', description: 'La reunión entre semana fue guardada correctamente.' })
     } catch (err) {
       toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
@@ -273,15 +259,8 @@ export default function ProgramarPage() {
     }
   }
 
-  async function handleGuardarFDS(ignorarOtra = false) {
+  async function handleGuardarFDS() {
     if (!semanaFDS.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
-    if (!ignorarOtra && semana.fecha && !semanaSaved) {
-      setIncompletoMensaje('La reunión de entre semana también tiene datos sin guardar.')
-      setIncompletoAccion(() => () => { setIncompletoOpen(false); setTipo('semana') })
-      setIncompletoGuardarIgual(() => () => handleGuardarFDS(true))
-      setIncompletoOpen(true)
-      return
-    }
     const fechaNorm = semanaFDS.fecha.replace(/-/g, '/')
     const existente = todasSemanasFDS.find(s => s.id !== semanaFDS.id && s.fecha.replace(/-/g, '/') === fechaNorm)
     if (existente) {
@@ -316,7 +295,6 @@ export default function ProgramarPage() {
         .map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
       const r2 = await saveAllAsignacionesFDS(s.id, asignArray)
       if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
-      setFdsSaved(true)
       toast({ title: 'Reunión guardada', description: 'La reunión de fin de semana fue guardada correctamente.' })
     } catch (err) {
       toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
@@ -654,24 +632,6 @@ const secciones = agruparPorSeccion()
               router.push(duplicadoTipo === 'semana' ? `/historial/${duplicadoId}` : `/fin-de-semana/${duplicadoId}`)
             }}>
               Ir al historial
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── POPUP REUNIÓN INCOMPLETA ── */}
-      <Dialog open={incompletoOpen} onOpenChange={setIncompletoOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Otra reunión sin guardar</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">{incompletoMensaje}</p>
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => { setIncompletoOpen(false); incompletoGuardarIgual?.() }}>
-              Guardar solo esta
-            </Button>
-            <Button onClick={incompletoAccion}>
-              Ir a la otra reunión
             </Button>
           </DialogFooter>
         </DialogContent>

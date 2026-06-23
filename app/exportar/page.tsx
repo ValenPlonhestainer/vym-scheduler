@@ -89,7 +89,19 @@ export default function ExportarPage() {
 
   const grupos = agruparSemanasPorMes(semanas)
   const gruposFDS = agruparSemanasPorMes(semanasFDS)
-  const meses = [...new Set([...Object.keys(grupos), ...Object.keys(gruposFDS)])].sort().reverse()
+  // Un mes aparece si tiene reuniones entre semana, o una FDS realmente huérfana
+  // (sin reunión entre semana en su misma semana ISO, en ningún mes). Así una semana
+  // que cruza de mes no hace aparecer el mes siguiente vacío en el selector.
+  const mesesConFDSHuerfana = new Set<string>()
+  for (const fds of semanasFDS) {
+    const key = semanaLunes(fds.fecha)
+    const tieneContraparte = semanas.some(s => semanaLunes(s.fecha) === key)
+    if (!tieneContraparte) {
+      const [y, m] = fds.fecha.split('-')
+      mesesConFDSHuerfana.add(`${y}-${m}`)
+    }
+  }
+  const meses = [...new Set([...Object.keys(grupos), ...mesesConFDSHuerfana])].sort().reverse()
 
   useEffect(() => {
     if (meses.length > 0 && !mesSeleccionado) setMesSeleccionado(meses[0])

@@ -103,7 +103,15 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
         privActualizados.estudiante_aux_conversacion = true
         privActualizados.estudiante_aux_discurso = true
       }
-      return { ...f, rol: nuevoRol, privilegios: privActualizados }
+      // El rol determina el género: Hermana → femenino; el resto → masculino.
+      // Evita que una hermana quede con género masculino y se cuele como microfonista.
+      const nuevoGenero: Genero = nuevoRol === 'hermana' ? 'femenino' : 'masculino'
+      if (nuevoGenero === 'femenino') {
+        for (const cfg of PRIVILEGIOS_CONFIG) {
+          if (cfg.soloHombres) privActualizados[cfg.key] = false
+        }
+      }
+      return { ...f, rol: nuevoRol, genero: nuevoGenero, privilegios: privActualizados }
     })
   }
 

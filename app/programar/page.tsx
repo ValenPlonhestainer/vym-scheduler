@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, CheckCircle2, AlertCircle, RefreshCw, Calendar, Sun } from 'lucide-react'
+import { Plus, Loader2, CheckCircle2, AlertCircle, Calendar, Sun, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -56,6 +56,37 @@ function encontrarSemana(semanas: Array<{ fecha: string }>, fechaInput: string) 
 }
 
 const SECCIONES_ORDEN = ['apertura', 'tesoros', 'maestros', 'cristiana', 'cierre']
+const MESES_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+// Estado inicial vacío con un id NUEVO. Clave para no pisar la semana anterior:
+// cada semana guardada debe tener su propio id (el save hace upsert por id).
+function nuevaSemanaVacia(): Partial<Semana> {
+  return { id: generateId(), fecha: '', tema: '', lecturaBiblica: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, titulos: {}, microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
+}
+function nuevaFDSVacia(): Partial<SemanaFDS> {
+  return { id: generateId(), fecha: '', tituloArticulo: '', fechaLocale: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, boceto: undefined, disertacionTitulo: '', oradorNombre: '', oradorCongregacion: '', microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
+}
+
+// Etiqueta legible para una semana del epub (fecha en YYYY-MM-DD).
+function labelSemanaEpub(fecha: string): string {
+  const [y, m, d] = fecha.split('-').map(Number)
+  if (!y || !m || !d) return fecha
+  return new Date(y, m - 1, d).toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })
+}
+
+// Sábado (fin de semana) de la misma semana ISO que `fecha` (YYYY-MM-DD).
+// El epub de fin de semana matchea por semana, así que con cualquier día del
+// fin de semana de esa semana carga el artículo correcto de La Atalaya.
+function sabadoDeSemana(fecha: string): string {
+  const [y, m, d] = fecha.split('-').map(Number)
+  if (!y || !m || !d) return fecha
+  const dt = new Date(y, m - 1, d)
+  const dow = dt.getDay() // 0=domingo … 6=sábado
+  const toMonday = dow === 0 ? 6 : dow - 1
+  const sat = new Date(dt)
+  sat.setDate(dt.getDate() - toMonday + 5)
+  return `${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, '0')}-${String(sat.getDate()).padStart(2, '0')}`
+}
 
 export default function ProgramarPage() {
   const router = useRouter()
@@ -82,11 +113,21 @@ export default function ProgramarPage() {
   )
   const abortRef = useRef<AbortController | null>(null)
 
+  // Lista de semanas disponibles en la guía (epub) para elegir sin tipear la fecha.
+  const [mesEpub, setMesEpub] = useState<string>(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [semanasEpub, setSemanasEpub] = useState<Array<{ fecha: string; tema: string }>>([])
+  const [epubListStatus, setEpubListStatus] = useState<EpubStatus>('idle')
+  const [epubListError, setEpubListError] = useState('')
+  const [panelOpen, setPanelOpen] = useState(false)
+
   const [semana, setSemana] = useState<Partial<Semana>>(() => {
     if (typeof window !== 'undefined') {
       try { const r = localStorage.getItem('vym_prog_semana'); if (r) return JSON.parse(r) } catch {}
     }
-    return { id: generateId(), fecha: '', tema: '', lecturaBiblica: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, titulos: {}, microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
+    return nuevaSemanaVacia()
   })
   const [asigs, setAsigs] = useState<Asigs>(() => {
     if (typeof window !== 'undefined') {
@@ -104,7 +145,7 @@ export default function ProgramarPage() {
     if (typeof window !== 'undefined') {
       try { const r = localStorage.getItem('vym_prog_fds'); if (r) return JSON.parse(r) } catch {}
     }
-    return { id: generateId(), fecha: '', tituloArticulo: '', fechaLocale: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, boceto: undefined, disertacionTitulo: '', oradorNombre: '', oradorCongregacion: '', microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
+    return nuevaFDSVacia()
   })
   const [asigsFDS, setAsigsFDS] = useState<AsigsFDS>(() => {
     if (typeof window !== 'undefined') {
@@ -113,12 +154,16 @@ export default function ProgramarPage() {
     return {}
   })
 
-  useEffect(() => {
-    getHermanos().then(setHermanos)
+  function recargarListas() {
     getAllAsignacionesConFecha().then(setTodasAsigs)
     getAllAsignacionesFDSConFecha().then(setTodasAsigsFDS)
     getSemanas().then(setTodasSemanas)
     getSemanasFDS().then(setTodasSemanasFDS)
+  }
+
+  useEffect(() => {
+    getHermanos().then(setHermanos)
+    recargarListas()
   }, [])
 
   // Epub entre semana
@@ -159,6 +204,39 @@ export default function ProgramarPage() {
     cargar()
     return () => ctrl.abort()
   }, [semana.fecha])
+
+  // Lista de semanas del bimestre para el selector (epub entre semana)
+  useEffect(() => {
+    if (!mesEpub || mesEpub.length < 7) return
+    const [year, month] = mesEpub.split('-')
+    const ctrl = new AbortController()
+    setEpubListStatus('loading')
+    fetch(`/api/epub?year=${year}&month=${month}`, { signal: ctrl.signal })
+      .then(r => r.json())
+      .then((data) => {
+        if (!Array.isArray(data?.semanas)) {
+          setSemanasEpub([])
+          setEpubListError(data?.error || 'No se pudo cargar la guía de ese mes.')
+          setEpubListStatus('error')
+          return
+        }
+        // La API trae todo el bimestre; mostramos solo las semanas del mes elegido.
+        const lista = (data.semanas as Array<{ fecha: unknown; tema: unknown }>)
+          .map(s => ({ fecha: String(s.fecha ?? '').replace(/\//g, '-'), tema: String(s.tema ?? '') }))
+          .filter(s => s.fecha.length === 10 && s.fecha.slice(0, 7) === mesEpub)
+          .sort((a, b) => a.fecha.localeCompare(b.fecha))
+        setSemanasEpub(lista)
+        if (lista.length) { setEpubListError(''); setEpubListStatus('ok') }
+        else { setEpubListError('jw.org todavía no publicó la guía de ese bimestre.'); setEpubListStatus('error') }
+      })
+      .catch((e) => {
+        if ((e as { name?: string }).name === 'AbortError') return
+        setSemanasEpub([])
+        setEpubListError('Sin conexión o error al cargar la guía.')
+        setEpubListStatus('error')
+      })
+    return () => ctrl.abort()
+  }, [mesEpub])
 
   // Epub fin de semana
   useEffect(() => {
@@ -210,11 +288,13 @@ export default function ProgramarPage() {
   function setTitulo(parte: ParteTipo, titulo: string) {
     setSemana(prev => ({ ...prev, titulos: { ...prev.titulos, [parte]: titulo } }))
   }
-  function recargar() {
-    const f = semana.fecha
-    if (!f) return
-    setSemana(p => ({ ...p, fecha: '' }))
-    setTimeout(() => setSemana(p => ({ ...p, fecha: f })), 50)
+  // Elegir una semana de la guía: carga AMBAS reuniones (entre semana + fin de
+  // semana). Los useEffect del epub disparan al cambiar cada fecha.
+  function elegirSemanaGuia(fechaSemana: string) {
+    setSemana(p => ({ ...p, fecha: fechaSemana }))
+    setSemanaFDS(p => ({ ...p, fecha: sabadoDeSemana(fechaSemana) }))
+    setPanelOpen(false)
+    toast({ title: 'Semana cargada', description: 'Se cargaron la reunión entre semana y la de fin de semana.' })
   }
 
   async function handleGuardarSemana() {
@@ -252,6 +332,12 @@ export default function ProgramarPage() {
       const r2 = await saveAllAsignaciones(s.id, asignArray)
       if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
       toast({ title: 'Reunión guardada', description: 'La reunión entre semana fue guardada correctamente.' })
+      // Limpiar el formulario con un id NUEVO para que la próxima semana no pise esta.
+      setSemana(nuevaSemanaVacia())
+      setAsigs({})
+      setEpubStatus('idle')
+      setEpubError('')
+      recargarListas()
     } catch (err) {
       toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
     } finally {
@@ -296,6 +382,12 @@ export default function ProgramarPage() {
       const r2 = await saveAllAsignacionesFDS(s.id, asignArray)
       if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
       toast({ title: 'Reunión guardada', description: 'La reunión de fin de semana fue guardada correctamente.' })
+      // Limpiar el formulario con un id NUEVO para que la próxima reunión no pise esta.
+      setSemanaFDS(nuevaFDSVacia())
+      setAsigsFDS({})
+      setEpubFDSStatus('idle')
+      setEpubFDSError('')
+      recargarListas()
     } catch (err) {
       toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
     } finally {
@@ -304,6 +396,9 @@ export default function ProgramarPage() {
   }
 
 const secciones = agruparPorSeccion()
+  // Semana cargada (se usa para el rótulo del botón y el estado). semana.fecha es
+  // la fecha de la semana de la guía (entre semana); se prioriza esa.
+  const semanaCargada = semana.fecha || semanaFDS.fecha || ''
   const numEstudiantes = semana.numEstudiantes
     ?? ((semana.titulos as Record<string, string>)?.estudiante_4 ? 4
       : (semana.titulos as Record<string, string>)?.estudiante_3 ? 3
@@ -390,6 +485,98 @@ const secciones = agruparPorSeccion()
         </button>
       </div>
 
+      {/* Botón único: abre el panel de la guía (elige mes + semana, carga ambas reuniones) */}
+      <div className="mb-6 space-y-1">
+        <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPanelOpen(true)}>
+          <Calendar className="h-4 w-4" />
+          {semanaCargada ? <span className="capitalize">Semana del {labelSemanaEpub(semanaCargada)}</span> : 'Elegir semana de la guía'}
+        </Button>
+        {semanaCargada && (
+          <p className="text-xs flex items-center gap-1.5">
+            {(epubStatus === 'loading' || epubFDSStatus === 'loading') ? (
+              <><Loader2 className="h-3 w-3 animate-spin text-blue-500" /><span className="text-blue-500">Cargando datos de jw.org…</span></>
+            ) : (epubStatus === 'error' || epubFDSStatus === 'error') ? (
+              <><AlertCircle className="h-3 w-3 text-orange-500" /><span className="text-orange-500">{epubError || epubFDSError || 'No se pudieron cargar todos los datos de jw.org'}</span></>
+            ) : (
+              <><CheckCircle2 className="h-3 w-3 text-green-600" /><span className="text-muted-foreground">Datos cargados desde jw.org</span></>
+            )}
+          </p>
+        )}
+      </div>
+
+      {/* Panel lateral derecho */}
+      {panelOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setPanelOpen(false)} />
+          <div className="absolute top-0 right-0 h-full w-full max-w-sm bg-card border-l border-border shadow-xl flex flex-col animate-in slide-in-from-right duration-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">Elegir semana de la guía</h2>
+              <button onClick={() => setPanelOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Cerrar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <div className="space-y-1.5">
+                <Label>Mes</Label>
+                {(() => {
+                  const [epY, epM] = mesEpub.split('-').map(Number)
+                  return (
+                    <div className="rounded-lg border border-border p-3">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <button type="button" onClick={() => setMesEpub(`${epY - 1}-${String(epM).padStart(2, '0')}`)}
+                          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" aria-label="Año anterior">
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <span className="text-sm font-semibold text-foreground">{epY}</span>
+                        <button type="button" onClick={() => setMesEpub(`${epY + 1}-${String(epM).padStart(2, '0')}`)}
+                          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted" aria-label="Año siguiente">
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {MESES_ABBR.map((mes, i) => {
+                          const mm = i + 1
+                          const activo = mm === epM
+                          return (
+                            <button key={mes} type="button"
+                              onClick={() => setMesEpub(`${epY}-${String(mm).padStart(2, '0')}`)}
+                              className={`py-1.5 rounded-md text-sm capitalize transition-colors ${activo ? 'bg-blue-600 text-white font-medium' : 'text-foreground hover:bg-muted'}`}>
+                              {mes}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+              <div className="space-y-2">
+                <Label>Semana</Label>
+                {epubListStatus === 'loading' && (
+                  <p className="text-xs text-blue-500 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Cargando semanas…</p>
+                )}
+                {epubListStatus === 'error' && (
+                  <p className="text-xs text-orange-500">{epubListError}</p>
+                )}
+                <div className="space-y-1.5">
+                  {semanasEpub.map(w => (
+                    <button
+                      key={w.fecha}
+                      onClick={() => elegirSemanaGuia(w.fecha)}
+                      className="w-full text-left rounded-lg border border-border px-3 py-2 hover:bg-muted/60 hover:border-blue-500/40 transition-colors"
+                    >
+                      <div className="text-sm font-medium text-foreground capitalize">Semana del {labelSemanaEpub(w.fecha)}</div>
+                      {w.tema && <div className="text-xs text-muted-foreground line-clamp-2">{w.tema}</div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Al elegir una semana se cargan las dos reuniones: entre semana y fin de semana.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── FORMULARIO ENTRE SEMANA ── */}
       {tipo === 'semana' && (
         <>
@@ -398,40 +585,14 @@ const secciones = agruparPorSeccion()
               <CardTitle className="text-base">Datos de la semana</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="fecha">Fecha de la reunión *</Label>
-                  <Input
-                    id="fecha"
-                    type="date"
-                    value={semana.fecha ?? ''}
-                    onChange={e => setSemana(p => ({ ...p, fecha: e.target.value }))}
-                  />
-                  {semana.fecha && (
-                    <div className="flex items-center gap-1.5 text-xs">
-                      {epubStatus === 'loading' && (
-                        <><Loader2 className="h-3 w-3 animate-spin text-blue-500" /><span className="text-blue-500">Cargando datos de jw.org…</span></>
-                      )}
-                      {epubStatus === 'ok' && (
-                        <><CheckCircle2 className="h-3 w-3 text-green-600" /><span className="text-green-600">Títulos cargados desde jw.org</span></>
-                      )}
-                      {epubStatus === 'error' && (
-                        <><AlertCircle className="h-3 w-3 text-orange-500" /><span className="text-orange-500">{epubError}</span>
-                          <button onClick={recargar} className="ml-1 underline text-orange-600 hover:text-orange-800">reintentar</button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="lectura">Lectura bíblica</Label>
-                  <Input
-                    id="lectura"
-                    placeholder="Ej: Génesis 1-3"
-                    value={semana.lecturaBiblica ?? ''}
-                    onChange={e => setSemana(p => ({ ...p, lecturaBiblica: e.target.value }))}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lectura">Lectura bíblica</Label>
+                <Input
+                  id="lectura"
+                  placeholder="Ej: Génesis 1-3"
+                  value={semana.lecturaBiblica ?? ''}
+                  onChange={e => setSemana(p => ({ ...p, lecturaBiblica: e.target.value }))}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="tema">Tema de la semana</Label>
@@ -648,30 +809,6 @@ const secciones = agruparPorSeccion()
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Fecha de la reunión *</Label>
-                  <Input
-                    type="date"
-                    value={semanaFDS.fecha ?? ''}
-                    onChange={e => setSemanaFDS(p => ({ ...p, fecha: e.target.value }))}
-                  />
-                  {semanaFDS.fecha && (
-                    <div className="flex items-center gap-1.5 text-xs">
-                      {epubFDSStatus === 'loading' && (
-                        <><Loader2 className="h-3 w-3 animate-spin text-blue-500" /><span className="text-blue-500">Cargando desde jw.org…</span></>
-                      )}
-                      {epubFDSStatus === 'ok' && (
-                        <><CheckCircle2 className="h-3 w-3 text-green-600" /><span className="text-green-600">Datos cargados desde jw.org</span></>
-                      )}
-                      {epubFDSStatus === 'error' && (
-                        <><AlertCircle className="h-3 w-3 text-orange-500" /><span className="text-orange-500">{epubFDSError}</span></>
-                      )}
-                    </div>
-                  )}
-                  {semanaFDS.fechaLocale && (
-                    <p className="text-xs text-muted-foreground italic">{semanaFDS.fechaLocale}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
                   <div className="flex items-baseline gap-2">
                     <Label>Canción de apertura</Label>
                     <span className="text-xs text-muted-foreground italic">opcional</span>
@@ -684,6 +821,9 @@ const secciones = agruparPorSeccion()
                   />
                 </div>
               </div>
+              {semanaFDS.fechaLocale && (
+                <p className="text-xs text-muted-foreground italic">{semanaFDS.fechaLocale}</p>
+              )}
             </CardContent>
           </Card>
 

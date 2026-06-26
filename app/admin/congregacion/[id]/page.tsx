@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Users, Calendar, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Users, Calendar, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { useToast } from '@/hooks/use-toast'
 
 const ROL_LABELS: Record<string, string> = {
   anciano: 'Anciano',
@@ -26,8 +28,10 @@ interface DatosCong {
   hermanos: Array<{ id: string; nombre: string; rol: string; genero: string; activo: boolean }>
   semanas: Array<{ id: string; fecha: string; tema: string }>
   semanasFDS: Array<{ id: string; fecha: string; titulo_articulo: string }>
-  miembros: Array<{ nombre: string; rol: string; created_at: string }>
+  miembros: Array<{ user_id: string; nombre: string; rol: string; created_at: string }>
 }
+
+type Miembro = DatosCong['miembros'][number]
 
 function formatFecha(fecha: string) {
   if (!fecha) return ''
@@ -38,11 +42,31 @@ function formatFecha(fecha: string) {
 export default function CongregacionDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { toast } = useToast()
   const id = params.id as string
   const [datos, setDatos] = useState<DatosCong | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [hermanosAbierto, setHermanosAbierto] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Miembro | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDeleteMiembro() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const res = await fetch(`/api/admin/congregacion/${id}?userId=${deleteTarget.user_id}`, { method: 'DELETE' })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setDatos(d => d ? { ...d, miembros: d.miembros.filter(m => m.user_id !== deleteTarget.user_id) } : d)
+      setDeleteTarget(null)
+      toast(data.warning
+        ? { title: 'Eliminado con advertencia', description: data.warning }
+        : { title: deleteTarget.rol === 'owner' ? 'Organizador eliminado' : 'Colaborador eliminado' })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+    setDeleting(false)
+  }
 
   useEffect(() => {
     fetch(`/api/admin/congregacion/${id}`)
@@ -121,6 +145,15 @@ export default function CongregacionDetailPage() {
                   {m.rol === 'owner' ? 'Organizador' : 'Colaborador'}
                 </Badge>
                 <span className="text-xs text-muted-foreground">{formatFecha(m.created_at.slice(0, 10))}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteTarget(m)}
+                  className="text-red-600 hover:text-red-500 px-2 shrink-0"
+                  title="Eliminar acceso"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             ))}
           </CardContent>
@@ -206,6 +239,27 @@ export default function CongregacionDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmar borrado de miembro */}
+      <Dialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar acceso?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se eliminará el acceso de <span className="font-semibold text-foreground">{deleteTarget?.nombre}</span>
+            {' '}({deleteTarget?.rol === 'owner' ? 'Organizador' : 'Colaborador'}) y su cuenta. Los hermanos y reuniones de la congregación <span className="font-semibold text-foreground">no</span> se tocan.
+            {deleteTarget?.rol === 'owner' && ' Al ser organizador, se liberará el token para registrar uno nuevo.'}
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteMiembro} disabled={deleting}>
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

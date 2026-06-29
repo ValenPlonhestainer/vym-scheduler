@@ -135,10 +135,9 @@ export default function DetalleFDSPage() {
               )}
             </div>
           )}
-          {[semana.cancionApertura, semana.cancionIntermedia, semana.cancionCierre].some(Boolean) && (
+          {[semana.cancionIntermedia, semana.cancionCierre].some(Boolean) && (
             <div className="col-span-2 flex items-center gap-4 mt-1">
               <Music className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-              {semana.cancionApertura && <span className="text-purple-300 text-xs">Apertura: {semana.cancionApertura}</span>}
               {semana.cancionIntermedia && <span className="text-purple-300 text-xs">Intermedia: {semana.cancionIntermedia}</span>}
               {semana.cancionCierre && <span className="text-purple-300 text-xs">Cierre: {semana.cancionCierre}</span>}
             </div>
@@ -152,19 +151,7 @@ export default function DetalleFDSPage() {
           <CardTitle className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Datos generales</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <div className="space-y-1.5">
-              <div className="flex items-baseline gap-2">
-                <Label>Canción apertura</Label>
-                <span className="text-xs text-muted-foreground italic">opcional</span>
-              </div>
-              <Input
-                type="number"
-                placeholder="Nº"
-                value={semana.cancionApertura ?? ''}
-                onChange={e => update('cancionApertura', e.target.value ? +e.target.value : undefined)}
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <div className="space-y-1.5">
               <Label>Canción intermedia</Label>
               <Input

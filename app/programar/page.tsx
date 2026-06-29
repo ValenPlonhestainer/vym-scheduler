@@ -64,7 +64,7 @@ function nuevaSemanaVacia(): Partial<Semana> {
   return { id: generateId(), fecha: '', tema: '', lecturaBiblica: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, titulos: {}, microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
 }
 function nuevaFDSVacia(): Partial<SemanaFDS> {
-  return { id: generateId(), fecha: '', tituloArticulo: '', fechaLocale: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, boceto: undefined, disertacionTitulo: '', oradorNombre: '', oradorCongregacion: '', microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
+  return { id: generateId(), fecha: '', tituloArticulo: '', fechaLocale: '', cancionApertura: undefined, cancionIntermedia: undefined, cancionCierre: undefined, boceto: undefined, disertacionTitulo: '', oradorNombre: '', oradorCongregacion: '', oracionCierreTexto: '', microfonista1: undefined, microfonista2: undefined, acomodador1: undefined, acomodador2: undefined }
 }
 
 // Etiqueta legible para una semana del epub (fecha en YYYY-MM-DD).
@@ -368,6 +368,7 @@ export default function ProgramarPage() {
       disertacionTitulo: semanaFDS.disertacionTitulo,
       oradorNombre: semanaFDS.oradorNombre,
       oradorCongregacion: semanaFDS.oradorCongregacion,
+      oracionCierreTexto: semanaFDS.oracionCierreTexto,
       microfonista1: semanaFDS.microfonista1,
       microfonista2: semanaFDS.microfonista2,
       acomodador1: semanaFDS.acomodador1,
@@ -377,7 +378,7 @@ export default function ProgramarPage() {
       const r1 = await saveSemanaFDS(s)
       if (r1.error) { toast({ title: 'Error al guardar', description: r1.error, variant: 'destructive' }); return }
       const asignArray = Object.entries(asigsFDS)
-        .filter(([, v]) => !!v)
+        .filter(([parte, v]) => !!v && parte !== 'fds_oracion_cierre') // la oración de cierre ahora es texto libre
         .map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
       const r2 = await saveAllAsignacionesFDS(s.id, asignArray)
       if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
@@ -802,30 +803,16 @@ const secciones = agruparPorSeccion()
       {tipo === 'fds' && (
         <>
           {/* Datos generales */}
-          <Card className="mb-6">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Datos de la reunión</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-baseline gap-2">
-                    <Label>Canción de apertura</Label>
-                    <span className="text-xs text-muted-foreground italic">opcional</span>
-                  </div>
-                  <Input
-                    type="number"
-                    placeholder="Nº"
-                    value={semanaFDS.cancionApertura ?? ''}
-                    onChange={e => setSemanaFDS(p => ({ ...p, cancionApertura: e.target.value ? +e.target.value : undefined }))}
-                  />
-                </div>
-              </div>
-              {semanaFDS.fechaLocale && (
+          {semanaFDS.fechaLocale && (
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Datos de la reunión</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <p className="text-xs text-muted-foreground italic">{semanaFDS.fechaLocale}</p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Apertura */}
           <Card className="mb-4 border bg-card border-border">
@@ -880,7 +867,13 @@ const secciones = agruparPorSeccion()
                   <Input
                     placeholder="Nombre completo…"
                     value={semanaFDS.oradorNombre ?? ''}
-                    onChange={e => setSemanaFDS(p => ({ ...p, oradorNombre: e.target.value }))}
+                    onChange={e => setSemanaFDS(p => {
+                      const nuevo = e.target.value
+                      // Espejar el orador en la oración de cierre mientras no se haya
+                      // editado a mano (sigue vacía o igual al orador anterior).
+                      const sync = !p.oracionCierreTexto || p.oracionCierreTexto === (p.oradorNombre ?? '')
+                      return { ...p, oradorNombre: nuevo, ...(sync ? { oracionCierreTexto: nuevo } : {}) }
+                    })}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -939,15 +932,12 @@ const secciones = agruparPorSeccion()
               )}
               <div className="space-y-1.5">
                 <Label>{PARTES_INFO_FDS['fds_oracion_cierre'].label}</Label>
-                <SelectorFDS
-                  parte="fds_oracion_cierre"
-                  hermanos={hermanos}
-                  value={asigsFDS['fds_oracion_cierre'] ?? ''}
-                  onChange={v => setAsigFDS('fds_oracion_cierre', v)}
-                  semanaFDSId={semanaFDS.id!}
-                  todasAsignaciones={todasAsigsFDS}
-                  asigsSemana={asigsFDS}
+                <Input
+                  placeholder="Nombre de quien hace la oración…"
+                  value={semanaFDS.oracionCierreTexto ?? ''}
+                  onChange={e => setSemanaFDS(p => ({ ...p, oracionCierreTexto: e.target.value }))}
                 />
+                <p className="text-xs text-muted-foreground">Se completa solo con el orador. Podés borrarlo y poner otro.</p>
               </div>
             </CardContent>
           </Card>

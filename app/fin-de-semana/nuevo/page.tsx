@@ -167,15 +167,6 @@ export default function NuevoFinDeSemanaPage() {
                 <p className="text-xs text-muted-foreground italic">{semana.fechaLocale}</p>
               )}
             </div>
-            <div className="space-y-1.5">
-              <Label>Canción de apertura</Label>
-              <Input
-                type="number"
-                placeholder="Nº"
-                value={semana.cancionApertura ?? ''}
-                onChange={e => setSemana(p => ({ ...p, cancionApertura: e.target.value ? +e.target.value : undefined }))}
-              />
-            </div>
           </div>
         </CardContent>
       </Card>

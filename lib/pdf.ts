@@ -117,7 +117,7 @@ export function generarPDFMensual(
 
     if (name) {
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(90, 90, 90)
+      doc.setTextColor(0, 0, 0)
       doc.text(name, pageW - mR, y, { align: 'right' })
     }
 
@@ -152,7 +152,7 @@ export function generarPDFMensual(
       if (name) {
         const labelW = doc.getTextWidth(label + ': ')
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(90, 90, 90)
+        doc.setTextColor(0, 0, 0)
         doc.text(name, x + labelW, y)
       }
     }
@@ -300,7 +300,7 @@ export function generarPDFMensual(
         labelLines.forEach((l: string, i: number) => doc.text(l, mL + 3, y + i * LINE_H))
 
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(90, 90, 90)
+        doc.setTextColor(0, 0, 0)
         auxLines.forEach((l: string, i: number)  => doc.text(l, auxCX,  y + i * LINE_H, { align: 'center' }))
         mainLines.forEach((l: string, i: number) => doc.text(l, mainCX, y + i * LINE_H, { align: 'center' }))
 
@@ -413,7 +413,7 @@ export function generarPDFMensual(
         doc.text('Orador: ', mL + 3, y)
         const labelW = doc.getTextWidth('Orador: ')
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(90, 90, 90)
+        doc.setTextColor(0, 0, 0)
         doc.text(oradorInfo.join(' '), mL + 3 + labelW, y)
         doc.setTextColor(0, 0, 0)
         y += ROW_H
@@ -528,7 +528,7 @@ export function generarPDFMensual(
       doc.text('Orador: ', mL + 3, y)
       const labelW = doc.getTextWidth('Orador: ')
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(90, 90, 90)
+      doc.setTextColor(0, 0, 0)
       doc.text(oradorInfo.join(' '), mL + 3 + labelW, y)
       doc.setTextColor(0, 0, 0)
       y += ROW_H

@@ -14,7 +14,7 @@ interface FDSSemana {
 
 async function fetchAndCacheIssue(year: number, month: number, db: ReturnType<typeof getDb>): Promise<FDSSemana[]> {
   const cacheKey = `w-${year}-${month}`
-  const cached = db.prepare('SELECT data FROM epub_cache WHERE key = ?').get(cacheKey) as { data: string } | undefined
+  const cached = db?.prepare('SELECT data FROM epub_cache WHERE key = ?').get(cacheKey) as { data: string } | undefined
   if (cached) return JSON.parse(cached.data) as FDSSemana[]
 
   const issue = `${year}${String(month).padStart(2, '0')}`
@@ -43,7 +43,7 @@ async function fetchAndCacheIssue(year: number, month: number, db: ReturnType<ty
       cancionCierre: typeof d.w_study_concluding_song === 'number' ? d.w_study_concluding_song : undefined,
     }))
 
-  db.prepare('INSERT OR REPLACE INTO epub_cache (key, data, cached_at) VALUES (?, ?, ?)').run(
+  db?.prepare('INSERT OR REPLACE INTO epub_cache (key, data, cached_at) VALUES (?, ?, ?)').run(
     cacheKey, JSON.stringify(semanas), Date.now()
   )
 

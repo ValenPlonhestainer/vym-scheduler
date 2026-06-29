@@ -67,8 +67,8 @@ export async function GET(req: NextRequest) {
   const db = getDb()
   const cacheKey = `mwb-${year}-${bimStartMonth(month)}`
 
-  // Intentar servir desde caché
-  const cached = db.prepare('SELECT data FROM epub_cache WHERE key = ?').get(cacheKey) as { data: string } | undefined
+  // Intentar servir desde caché (best-effort: db es null en la web)
+  const cached = db?.prepare('SELECT data FROM epub_cache WHERE key = ?').get(cacheKey) as { data: string } | undefined
   if (cached) {
     return NextResponse.json(JSON.parse(cached.data))
   }
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     // Descargar bimestre actual + siguiente en paralelo
     const next = nextBimestre(year, month)
     const nextKey = `mwb-${next.year}-${next.month}`
-    const nextCached = db.prepare('SELECT key FROM epub_cache WHERE key = ?').get(nextKey)
+    const nextCached = db?.prepare('SELECT key FROM epub_cache WHERE key = ?').get(nextKey)
 
     const [result, nextResult] = await Promise.all([
       fetchAndParseBimestre(year, month),
@@ -86,12 +86,12 @@ export async function GET(req: NextRequest) {
 
     if (!result) throw new Error(`jw.org no respondió — puede que este bimestre aún no esté disponible`)
 
-    db.prepare('INSERT OR REPLACE INTO epub_cache (key, data, cached_at) VALUES (?, ?, ?)').run(
+    db?.prepare('INSERT OR REPLACE INTO epub_cache (key, data, cached_at) VALUES (?, ?, ?)').run(
       cacheKey, JSON.stringify(result), Date.now()
     )
 
     if (nextResult) {
-      db.prepare('INSERT OR REPLACE INTO epub_cache (key, data, cached_at) VALUES (?, ?, ?)').run(
+      db?.prepare('INSERT OR REPLACE INTO epub_cache (key, data, cached_at) VALUES (?, ?, ?)').run(
         nextKey, JSON.stringify(nextResult), Date.now()
       )
     }

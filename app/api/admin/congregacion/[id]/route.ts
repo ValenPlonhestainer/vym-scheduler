@@ -19,7 +19,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
       sb.from('hermanos').select('id, nombre, rol, genero, activo').eq('congregation_id', congId).order('nombre'),
       sb.from('semanas').select('id, fecha, tema').eq('congregation_id', congId).order('fecha', { ascending: false }).limit(10),
       sb.from('semanas_fds').select('id, fecha, titulo_articulo').eq('congregation_id', congId).order('fecha', { ascending: false }).limit(10),
-      sb.from('congregacion_miembros').select('user_id, nombre, rol, created_at').eq('congregacion_id', congId).order('created_at'),
+      sb.from('congregacion_miembros').select('user_id, nombre, rol, created_at').eq('congregacion_id', congId).neq('rol', 'admin').order('created_at'),
     ])
 
   if (!congregacion) return NextResponse.json({ error: 'Congregación no encontrada' }, { status: 404 })
@@ -44,6 +44,16 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!userId) return NextResponse.json({ error: 'Falta userId' }, { status: 400 })
 
   const sb = getServiceSupabase()
+
+  // Blindaje: la cuenta admin global no se puede eliminar desde acá.
+  const { data: esAdmin } = await sb
+    .from('app_admins')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (esAdmin) {
+    return NextResponse.json({ error: 'No se puede eliminar la cuenta admin desde acá.' }, { status: 400 })
+  }
 
   const { error: delMiembroError } = await sb
     .from('congregacion_miembros')

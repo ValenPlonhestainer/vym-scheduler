@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X, Sun, Moon, Eye, MessageSquare } from 'lucide-react'
+import { Shield, Plus, Power, Copy, Check, Loader2, Pencil, Trash2, X, Sun, Moon, Eye, MessageSquare, KeyRound, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -55,6 +55,13 @@ export default function AdminPage() {
   const [sugerencias, setSugerencias] = useState<SugerenciaRow[]>([])
   const [loadingSug, setLoadingSug] = useState(true)
 
+  type AdminRow = { user_id: string; email: string; congregaciones: number }
+  const [admins, setAdmins] = useState<AdminRow[]>([])
+  const [totalCongs, setTotalCongs] = useState(0)
+  const [adminEmail, setAdminEmail] = useState('')
+  const [adminPass, setAdminPass] = useState('')
+  const [savingAdmin, setSavingAdmin] = useState(false)
+
   async function load() {
     const res = await fetch('/api/admin/tokens')
     if (res.status === 401) { router.push('/admin/login'); return }
@@ -81,7 +88,65 @@ export default function AdminPage() {
     }
   }
 
-  useEffect(() => { load(); loadSugerencias() }, [])
+  async function loadAdmins() {
+    const res = await fetch('/api/admin/superadmin')
+    if (res.status === 401) { router.push('/admin/login'); return }
+    const data = await res.json()
+    setAdmins(data.cuentas ?? [])
+    setTotalCongs(data.totalCongregaciones ?? 0)
+  }
+
+  async function handleCreateAdmin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!adminEmail.trim() || adminPass.length < 6) return
+    setSavingAdmin(true)
+    const res = await fetch('/api/admin/superadmin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: adminEmail.trim(), password: adminPass, nombre: 'Administrador' }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setAdminEmail('')
+      setAdminPass('')
+      await loadAdmins()
+      toast({ title: 'Cuenta admin lista', description: `Vinculada a ${data.vinculadasAhora} congregación(es) nueva(s).` })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+    setSavingAdmin(false)
+  }
+
+  async function handleResyncAdmin(userId: string) {
+    setSavingAdmin(true)
+    const res = await fetch('/api/admin/superadmin/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      await loadAdmins()
+      toast({ title: 'Sincronizado', description: `Vinculada a ${data.vinculadasAhora} congregación(es) nueva(s).` })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+    setSavingAdmin(false)
+  }
+
+  async function handleDeleteAdmin(userId: string) {
+    setSavingAdmin(true)
+    const res = await fetch(`/api/admin/superadmin?userId=${userId}`, { method: 'DELETE' })
+    if (res.ok) {
+      await loadAdmins()
+      toast({ title: 'Privilegios admin quitados' })
+    } else {
+      toast({ title: 'Error', variant: 'destructive' })
+    }
+    setSavingAdmin(false)
+  }
+
+  useEffect(() => { load(); loadSugerencias(); loadAdmins() }, [])
 
   function handleNameChange(name: string) {
     setNewName(name)
@@ -297,6 +362,80 @@ export default function AdminPage() {
           ))
         )}
       </div>
+
+      {/* Cuenta admin global */}
+      <Card className="mt-10 border-emerald-800/40 bg-emerald-950/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base text-emerald-400 flex items-center gap-2">
+            <KeyRound className="h-4 w-4" /> Cuenta admin (entra a todas las congregaciones)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Creá una cuenta con acceso a las {totalCongs} congregaciones. Al iniciar sesión con ella
+            en la app, vas a poder elegir a cuál entrar. Las congregaciones nuevas se agregan solas.
+          </p>
+
+          <form onSubmit={handleCreateAdmin} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <div className="space-y-1.5">
+              <Label>Correo</Label>
+              <Input
+                type="email"
+                placeholder="admin@ejemplo.com"
+                value={adminEmail}
+                onChange={e => setAdminEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Contraseña</Label>
+              <Input
+                type="text"
+                placeholder="mín. 6 caracteres"
+                value={adminPass}
+                onChange={e => setAdminPass(e.target.value)}
+                className="font-mono text-sm"
+              />
+            </div>
+            <Button type="submit" disabled={savingAdmin || !adminEmail.trim() || adminPass.length < 6}>
+              {savingAdmin ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Crear / actualizar
+            </Button>
+          </form>
+
+          {admins.length > 0 && (
+            <div className="space-y-2 pt-1">
+              {admins.map(a => (
+                <div key={a.user_id} className="flex items-center gap-2 text-sm rounded-md border border-border bg-card px-3 py-2">
+                  <span className="flex-1 truncate font-medium">{a.email}</span>
+                  <Badge variant="outline" className="text-emerald-400 border-emerald-700 shrink-0">
+                    {a.congregaciones} / {totalCongs} congregaciones
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleResyncAdmin(a.user_id)}
+                    disabled={savingAdmin}
+                    className="text-sky-500 hover:text-sky-400 px-2 shrink-0"
+                    title="Vincular a todas las congregaciones"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteAdmin(a.user_id)}
+                    disabled={savingAdmin}
+                    className="text-red-600 hover:text-red-500 px-2 shrink-0"
+                    title="Quitar privilegios admin"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Sugerencias */}
       <div className="mt-10 space-y-2">

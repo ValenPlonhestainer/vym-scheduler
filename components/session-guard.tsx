@@ -16,7 +16,7 @@ const CHECK_INTERVAL = 10_000
 function shouldSkipCheck(): boolean {
   if (typeof window === 'undefined') return true
   const p = window.location.pathname
-  return p === '/' || p === '/registro' || p.startsWith('/admin')
+  return p === '/' || p === '/registro' || p === '/seleccionar' || p.startsWith('/admin')
 }
 
 export function SessionGuard() {

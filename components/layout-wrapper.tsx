@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const hasSidebar = pathname !== '/' && !pathname.startsWith('/admin') && !pathname.startsWith('/registro')
+  const hasSidebar = pathname !== '/' && pathname !== '/seleccionar' && !pathname.startsWith('/admin') && !pathname.startsWith('/registro')
   return (
     <main className={`min-h-screen bg-background${hasSidebar ? ' md:pl-52 pt-14 md:pt-0' : ''}`}>
       {children}

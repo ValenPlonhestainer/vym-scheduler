@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Calendar, History, FileDown, Settings, LogOut, BookOpen, Menu } from 'lucide-react'
+import { Users, Calendar, History, FileDown, Settings, LogOut, BookOpen, Menu, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -26,19 +26,22 @@ function getRolFromCookie(): string | null {
 
 function RolBadge({ rol }: { rol: string | null }) {
   if (!rol) return null
-  const isOwner = rol === 'owner'
+  const label = rol === 'admin' ? 'Admin' : rol === 'owner' ? 'Organizador' : 'Colaborador'
+  const color = rol === 'admin'
+    ? 'text-emerald-400 border-emerald-700'
+    : rol === 'owner'
+      ? 'text-amber-400 border-amber-700'
+      : 'text-sky-400 border-sky-700'
   return (
-    <Badge variant="outline" className={cn(
-      'text-xs px-1.5 py-0 h-5 shrink-0',
-      isOwner ? 'text-amber-400 border-amber-700' : 'text-sky-400 border-sky-700'
-    )}>
-      {isOwner ? 'Organizador' : 'Colaborador'}
+    <Badge variant="outline" className={cn('text-xs px-1.5 py-0 h-5 shrink-0', color)}>
+      {label}
     </Badge>
   )
 }
 
-function NavContent({ pathname, onNavigate, onLogoutClick }: {
+function NavContent({ pathname, rol, onNavigate, onLogoutClick }: {
   pathname: string
+  rol: string | null
   onNavigate?: () => void
   onLogoutClick: () => void
 }) {
@@ -76,6 +79,16 @@ function NavContent({ pathname, onNavigate, onLogoutClick }: {
       </nav>
 
       <div className="p-3 border-t border-border">
+        {rol === 'admin' && (
+          <Link
+            href="/seleccionar"
+            onClick={onNavigate}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground w-full transition-colors"
+          >
+            <Building2 className="h-4 w-4 shrink-0" />
+            Cambiar congregación
+          </Link>
+        )}
         <button
           onClick={onLogoutClick}
           className="flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground w-full transition-colors"
@@ -98,7 +111,7 @@ export function Navigation() {
     setRol(getRolFromCookie())
   }, [])
 
-  if (pathname === '/' || pathname.startsWith('/admin') || pathname.startsWith('/registro')) return null
+  if (pathname === '/' || pathname === '/seleccionar' || pathname.startsWith('/admin') || pathname.startsWith('/registro')) return null
 
   function handleLogout() {
     ;['vym_prog_semana','vym_prog_asigs','vym_prog_fds','vym_prog_asigsfds','vym_prog_tipo','vym_prog_salaaux'].forEach(k => localStorage.removeItem(k))
@@ -118,6 +131,7 @@ export function Navigation() {
       <aside className="fixed top-0 left-0 h-full w-52 bg-card border-r border-border flex-col z-40 no-print hidden md:flex">
         <NavContent
           pathname={pathname}
+          rol={rol}
           onLogoutClick={() => setLogoutOpen(true)}
         />
       </aside>
@@ -141,6 +155,7 @@ export function Navigation() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <NavContent
           pathname={pathname}
+          rol={rol}
           onNavigate={() => setMobileOpen(false)}
           onLogoutClick={() => { setMobileOpen(false); setLogoutOpen(true) }}
         />

@@ -8,7 +8,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/check-sesion')) {
+  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/check-sesion') || pathname.startsWith('/api/seleccionar-congregacion')) {
+    return NextResponse.next()
+  }
+
+  // Selector de congregación: la cuenta admin ya está logueada (tiene user_id)
+  // pero todavía no eligió congregación (no hay congregation_id).
+  if (pathname === '/seleccionar') {
+    const userId = request.cookies.get('user_id')?.value
+    if (!userId) return NextResponse.redirect(new URL('/', request.url))
     return NextResponse.next()
   }
 
@@ -27,6 +35,10 @@ export async function middleware(request: NextRequest) {
     const congId = request.cookies.get('congregation_id')?.value
     if (userId && congId) {
       return NextResponse.redirect(new URL('/inicio', request.url))
+    }
+    if (userId) {
+      // Sesión iniciada pero sin congregación elegida (cuenta admin).
+      return NextResponse.redirect(new URL('/seleccionar', request.url))
     }
     return NextResponse.next()
   }

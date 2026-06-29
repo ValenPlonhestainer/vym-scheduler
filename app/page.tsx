@@ -33,7 +33,7 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-      window.location.href = '/inicio'
+      window.location.href = data.seleccionar ? '/seleccionar' : '/inicio'
     } catch {
       setError('Error de conexión. Verificá tu acceso a internet.')
       setLoading(false)

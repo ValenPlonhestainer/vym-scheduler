@@ -41,6 +41,7 @@ export default function NuevoFinDeSemanaPage() {
     disertacionTitulo: '',
     oradorNombre: '',
     oradorCongregacion: '',
+    oracionCierreTexto: '',
   })
 
   const [asigs, setAsigs] = useState<Asigs>({})
@@ -111,6 +112,7 @@ export default function NuevoFinDeSemanaPage() {
       disertacionTitulo: semana.disertacionTitulo,
       oradorNombre: semana.oradorNombre,
       oradorCongregacion: semana.oradorCongregacion,
+      oracionCierreTexto: semana.oracionCierreTexto,
     }
     await saveSemanaFDS(s)
     const asignArray = Object.entries(asigs)
@@ -253,7 +255,13 @@ export default function NuevoFinDeSemanaPage() {
               <Input
                 placeholder="Nombre completo…"
                 value={semana.oradorNombre ?? ''}
-                onChange={e => setSemana(p => ({ ...p, oradorNombre: e.target.value }))}
+                onChange={e => setSemana(p => {
+                  const nuevo = e.target.value
+                  // Espejar el orador en la oración de cierre mientras no se haya
+                  // editado a mano (sigue vacía o igual al orador anterior).
+                  const sync = !p.oracionCierreTexto || p.oracionCierreTexto === (p.oradorNombre ?? '')
+                  return { ...p, oradorNombre: nuevo, ...(sync ? { oracionCierreTexto: nuevo } : {}) }
+                })}
               />
             </div>
             <div className="space-y-1.5">
@@ -325,15 +333,12 @@ export default function NuevoFinDeSemanaPage() {
           )}
           <div className="space-y-1.5">
             <Label>Oración de cierre</Label>
-            <SelectorFDS
-              parte="fds_oracion_cierre"
-              hermanos={hermanos}
-              value={asigs['fds_oracion_cierre'] ?? ''}
-              onChange={v => setAsig('fds_oracion_cierre', v)}
-              semanaFDSId={semanaId}
-              todasAsignaciones={todasAsigsFDS}
-              asigsSemana={asigs}
+            <Input
+              placeholder="Nombre de quien hace la oración…"
+              value={semana.oracionCierreTexto ?? ''}
+              onChange={e => setSemana(p => ({ ...p, oracionCierreTexto: e.target.value }))}
             />
+            <p className="text-xs text-muted-foreground">Se completa solo con el orador. Podés borrarlo y poner otro.</p>
           </div>
         </CardContent>
       </Card>

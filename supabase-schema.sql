@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS semanas_fds (
   disertacion_titulo  text,
   orador_nombre       text,
   orador_congregacion text,
+  oracion_cierre_texto text,
   created_at          timestamptz NOT NULL DEFAULT now()
 );
 

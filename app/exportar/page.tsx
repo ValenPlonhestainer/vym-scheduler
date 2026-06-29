@@ -399,8 +399,8 @@ export default function ExportarPage() {
                   {/* Cierre FDS */}
                   <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
                     <span className="text-muted-foreground text-xs">Oración de cierre</span>
-                    <span className={`font-semibold text-xs shrink-0 ${asigsFDSMap['fds_oracion_cierre'] ? 'text-foreground' : 'text-muted-foreground/40'}`}>
-                      {asigsFDSMap['fds_oracion_cierre'] ? nombreHermano(asigsFDSMap['fds_oracion_cierre']) : '—'}
+                    <span className={`font-semibold text-xs shrink-0 ${fds.oracionCierreTexto ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                      {fds.oracionCierreTexto || '—'}
                     </span>
                   </div>
                   {fds.cancionCierre && (
@@ -490,8 +490,8 @@ export default function ExportarPage() {
               </div>
               <div className="flex justify-between px-4 py-1.5 border-b border-border text-sm">
                 <span className="text-muted-foreground text-xs">Oración de cierre</span>
-                <span className={`font-semibold text-xs shrink-0 ${asigsFDSMap['fds_oracion_cierre'] ? 'text-foreground' : 'text-muted-foreground/40'}`}>
-                  {asigsFDSMap['fds_oracion_cierre'] ? nombreHermano(asigsFDSMap['fds_oracion_cierre']) : '—'}
+                <span className={`font-semibold text-xs shrink-0 ${fds.oracionCierreTexto ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                  {fds.oracionCierreTexto || '—'}
                 </span>
               </div>
               {fds.cancionCierre && (

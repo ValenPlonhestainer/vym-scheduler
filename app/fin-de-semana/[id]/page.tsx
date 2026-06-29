@@ -38,9 +38,16 @@ export default function DetalleFDSPage() {
     Promise.all([getSemanaFDS(id), getAsignacionesFDS(id), getHermanos(), getAllAsignacionesFDSConFecha()])
       .then(([s, asigsSemana, herm, todas]) => {
         if (!s) { router.push('/fin-de-semana'); return }
-        setSemana(s)
         const map: Asigs = {}
         for (const a of asigsSemana) map[a.parte] = a.hermanoId
+        // Migración suave: semanas viejas guardaban la oración de cierre como
+        // asignación (hermano_id). Si no hay texto libre, lo precargamos con
+        // el nombre de ese hermano.
+        if (!s.oracionCierreTexto && map['fds_oracion_cierre']) {
+          const h = herm.find(x => x.id === map['fds_oracion_cierre'])
+          if (h) s = { ...s, oracionCierreTexto: h.nombre }
+        }
+        setSemana(s)
         setAsigs(map)
         setHermanos(herm)
         setTodasAsigsFDS(todas)
@@ -62,7 +69,7 @@ export default function DetalleFDSPage() {
     setSaving(true)
     await saveSemanaFDS(semana)
     const asignArray = Object.entries(asigs)
-      .filter(([, v]) => !!v)
+      .filter(([parte, v]) => !!v && parte !== 'fds_oracion_cierre') // la oración de cierre ahora es texto libre
       .map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
     await saveAllAsignacionesFDS(semana.id, asignArray)
     setSaving(false)
@@ -99,7 +106,6 @@ export default function DetalleFDSPage() {
               ['fds_presidente', 'Presidente'],
               ['fds_oracion_apertura', 'Oración apertura'],
               ['fds_lector', 'Lector'],
-              ['fds_oracion_cierre', 'Oración cierre'],
             ] as [ParteTipoFDS, string][]
           ).map(([parte, label]) => (
             <div key={parte} className="flex items-center gap-2">
@@ -108,6 +114,11 @@ export default function DetalleFDSPage() {
               <span className="text-foreground font-medium">{nombre(asigs[parte])}</span>
             </div>
           ))}
+          <div className="flex items-center gap-2">
+            <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground">Oración cierre:</span>
+            <span className="text-foreground font-medium">{semana.oracionCierreTexto || '—'}</span>
+          </div>
           {semana.boceto && (
             <div className="col-span-2 flex items-center gap-2">
               <BookOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
@@ -226,7 +237,14 @@ export default function DetalleFDSPage() {
               <Input
                 placeholder="Nombre completo…"
                 value={semana.oradorNombre ?? ''}
-                onChange={e => update('oradorNombre', e.target.value)}
+                onChange={e => setSemana(prev => {
+                  if (!prev) return prev
+                  const nuevo = e.target.value
+                  // Espejar el orador en la oración de cierre mientras no se haya
+                  // editado a mano (sigue vacía o igual al orador anterior).
+                  const sync = !prev.oracionCierreTexto || prev.oracionCierreTexto === (prev.oradorNombre ?? '')
+                  return { ...prev, oradorNombre: nuevo, ...(sync ? { oracionCierreTexto: nuevo } : {}) }
+                })}
               />
             </div>
             <div className="space-y-1.5">
@@ -278,15 +296,12 @@ export default function DetalleFDSPage() {
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label>{PARTES_INFO_FDS['fds_oracion_cierre'].label}</Label>
-            <SelectorFDS
-              parte="fds_oracion_cierre"
-              hermanos={hermanos}
-              value={asigs['fds_oracion_cierre'] ?? ''}
-              onChange={v => setAsig('fds_oracion_cierre', v)}
-              semanaFDSId={semana.id}
-              todasAsignaciones={todasAsigsFDS}
-              asigsSemana={asigs}
+            <Input
+              placeholder="Nombre de quien hace la oración…"
+              value={semana.oracionCierreTexto ?? ''}
+              onChange={e => update('oracionCierreTexto', e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Se completa solo con el orador. Podés borrarlo y poner otro.</p>
           </div>
         </CardContent>
       </Card>

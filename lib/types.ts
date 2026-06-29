@@ -324,6 +324,7 @@ export interface SemanaFDS {
   disertacionTitulo?: string
   oradorNombre?: string
   oradorCongregacion?: string
+  oracionCierreTexto?: string // oración de cierre — texto libre (no asignación)
   microfonista1?: string
   microfonista2?: string
   acomodador1?: string

@@ -437,8 +437,8 @@ export function generarPDFMensual(
       const fdsLector = nombre(asigsFDSMap['fds_lector'])
       if (fdsLector) multiCol([['Lector', fdsLector]])
 
-      // Cierre FDS
-      const fdsOrCi = nombre(asigsFDSMap['fds_oracion_cierre'])
+      // Cierre FDS — texto libre (autocompletado con el orador)
+      const fdsOrCi = fds.oracionCierreTexto ?? ''
       if (fdsOrCi) multiCol([['Oración de cierre', fdsOrCi]])
 
       // Microfonistas y Acomodadores — fin de semana
@@ -547,7 +547,7 @@ export function generarPDFMensual(
     }
     const fdsLector = nombre(asigsFDSMap['fds_lector'])
     if (fdsLector) multiCol([['Lector', fdsLector]])
-    const fdsOrCi = nombre(asigsFDSMap['fds_oracion_cierre'])
+    const fdsOrCi = fds.oracionCierreTexto ?? ''
     if (fdsOrCi) multiCol([['Oración de cierre', fdsOrCi]])
 
     const hMic1 = nombre(fds.microfonista1)

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Users, Calendar, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { ArrowLeft, Users, Calendar, Loader2, ChevronDown, ChevronUp, Trash2, KeyRound, Plus, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +51,49 @@ export default function CongregacionDetailPage() {
   const [deleteTarget, setDeleteTarget] = useState<Miembro | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  type CodigoRow = { id: string; codigo: string; usado: boolean; created_at: string }
+  const [codigos, setCodigos] = useState<CodigoRow[]>([])
+  const [loadingCodigos, setLoadingCodigos] = useState(true)
+  const [generando, setGenerando] = useState(false)
+  const [copiado, setCopiado] = useState<string | null>(null)
+
+  async function cargarCodigos() {
+    setLoadingCodigos(true)
+    const res = await fetch(`/api/admin/congregacion/${id}/invitaciones`)
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) setCodigos(data.invitaciones ?? [])
+    setLoadingCodigos(false)
+  }
+
+  async function generarCodigo() {
+    setGenerando(true)
+    const res = await fetch(`/api/admin/congregacion/${id}/invitaciones`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok && data.invitacion) {
+      setCodigos(c => [data.invitacion, ...c])
+      toast({ title: 'Código generado', description: 'Compartilo con el colaborador para que se registre.' })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+    setGenerando(false)
+  }
+
+  async function eliminarCodigo(codigoId: string) {
+    const res = await fetch(`/api/admin/congregacion/${id}/invitaciones?codigoId=${codigoId}`, { method: 'DELETE' })
+    if (res.ok) {
+      setCodigos(c => c.filter(x => x.id !== codigoId))
+      toast({ title: 'Código eliminado' })
+    } else {
+      toast({ title: 'Error', variant: 'destructive' })
+    }
+  }
+
+  async function copiarCodigo(codigo: string) {
+    await navigator.clipboard.writeText(codigo)
+    setCopiado(codigo)
+    setTimeout(() => setCopiado(null), 2000)
+  }
+
   async function handleDeleteMiembro() {
     if (!deleteTarget) return
     setDeleting(true)
@@ -77,6 +120,7 @@ export default function CongregacionDetailPage() {
         setLoading(false)
       })
       .catch(() => { setError('Error al cargar datos'); setLoading(false) })
+    cargarCodigos()
   }, [id])
 
   if (loading) return (
@@ -159,6 +203,55 @@ export default function CongregacionDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Códigos de colaborador */}
+      <Card className="border-amber-800/40 bg-amber-950/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2 text-amber-400">
+            <KeyRound className="h-4 w-4" /> Códigos de colaborador
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Generá un código y compartilo con la persona. Al registrarse en la app con este código,
+            queda como colaborador de <span className="font-medium text-foreground">{datos.congregacion.nombre}</span>.
+            Cada código sirve una sola vez.
+          </p>
+
+          {loadingCodigos ? (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : codigos.length > 0 && (
+            <div className="space-y-1.5">
+              {codigos.map(c => (
+                <div key={c.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
+                  <code className="flex-1 font-mono text-sm tracking-widest text-foreground">{c.codigo}</code>
+                  <button
+                    onClick={() => copiarCodigo(c.codigo)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    title="Copiar"
+                  >
+                    {copiado === c.codigo ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={() => eliminarCodigo(c.id)}
+                    className="text-red-600 hover:text-red-500 transition-colors"
+                    title="Eliminar código"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Button size="sm" onClick={generarCodigo} disabled={generando}>
+            {generando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Generar código
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Hermanos */}
       <Card>

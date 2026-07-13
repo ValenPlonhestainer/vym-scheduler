@@ -169,11 +169,10 @@ export default function SemanaDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Fecha</Label>
-              <Input
-                type="date"
-                value={semana.fecha}
-                onChange={e => setSemana(p => p ? { ...p, fecha: e.target.value } : p)}
-              />
+              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-muted-foreground capitalize">
+                {formatFecha(semana.fecha)}
+              </div>
+              <p className="text-xs text-muted-foreground">La fecha se define al crear la reunión en Programar.</p>
             </div>
             <div className="space-y-1.5">
               <Label>Lectura bíblica</Label>

@@ -81,6 +81,7 @@ export function getPrivilegiosDefecto(rol: Rol): Privilegios {
       estudiante_conversacion: true, estudiante_discurso: true,
       estudiante_aux_conversacion: true, estudiante_aux_discurso: true,
       ayudante_estudiante: true, lector_estudio: true, lector_atalaya: true,
+      microfonos: true,
     })
     case 'hermana': return esMasculinoConRol({
       estudiante_conversacion: true, estudiante_aux_conversacion: true, ayudante_estudiante: true,

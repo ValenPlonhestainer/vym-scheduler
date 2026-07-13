@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { Hermano } from '@/lib/types'
 import { PanelSelectorHermano } from './panel-selector-hermano'
-import { cn } from '@/lib/utils'
+import { cn, getPrivilegiosDefecto } from '@/lib/utils'
 
 interface Props {
   label: string
@@ -18,9 +18,14 @@ export function SelectorMicrofono({ label, hermanos, value, onChange }: Props) {
   const selectedHermano = hermanos.find(h => h.id === value)
 
   const items = hermanos
-    // Hermanos (género masculino y rol no-hermana): siempre elegibles.
-    // Hermanas: solo con el privilegio de micrófonos activo (independiente del género guardado).
-    .filter(h => h.activo && ((h.genero === 'masculino' && h.rol !== 'hermana') || h.privilegios?.microfonos === true))
+    // Ancianos y siervos (masculinos): siempre elegibles.
+    // Publicadores y hermanas: solo con el privilegio "Microfonista" activo.
+    .filter(h => {
+      if (!h.activo) return false
+      if (h.genero === 'masculino' && (h.rol === 'anciano' || h.rol === 'siervo')) return true
+      const privs = h.privilegios ?? getPrivilegiosDefecto(h.rol)
+      return privs.microfonos === true
+    })
     .map(h => ({ hermano: h, ultima: null, yaAsignado: false }))
 
   return (

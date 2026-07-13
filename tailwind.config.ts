@@ -65,10 +65,27 @@ const config: Config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // ── Onboarding (tutorial de bienvenida) ──
+        "drop-in": {
+          "0%":   { transform: "translateY(-18px)", opacity: "0" },
+          "70%":  { transform: "translateY(2px)",   opacity: "1" },
+          "100%": { transform: "translateY(0)",     opacity: "1" },
+        },
+        float: {
+          "0%,100%": { transform: "translateY(0)" },
+          "50%":     { transform: "translateY(-6px)" },
+        },
+        glow: {
+          "0%,100%": { boxShadow: "0 0 0 0 hsl(var(--primary) / 0)" },
+          "50%":     { boxShadow: "0 0 0 4px hsl(var(--primary) / 0.28)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "drop-in": "drop-in 0.6s ease-out both",
+        float: "float 2.4s ease-in-out infinite",
+        glow: "glow 1.8s ease-in-out infinite",
       },
     },
   },

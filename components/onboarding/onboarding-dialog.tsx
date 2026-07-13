@@ -221,11 +221,11 @@ function MockExportar() {
 }
 
 function MockConfiguracion() {
-  type Row = { label: string; on?: boolean; input?: boolean; icon?: typeof Moon }
+  type Row = { label: string; on?: boolean; input?: boolean; code?: string; icon?: typeof Moon }
   const rows: Row[] = [
     { label: 'Tema oscuro', on: true, icon: Moon },
     { label: 'Nombre de la congregación', input: true },
-    { label: 'Canción de apertura', input: true },
+    { label: 'Colaboradores', code: 'X7K2P9', icon: Users },
   ]
   return (
     <Stage>
@@ -250,6 +250,10 @@ function MockConfiguracion() {
                 r.on ? 'justify-end bg-primary animate-glow' : 'justify-start bg-muted-foreground/30',
               )}>
                 <span className="h-4 w-4 rounded-full bg-white shadow" />
+              </span>
+            ) : r.code ? (
+              <span className="rounded-md border border-dashed border-primary/50 bg-primary/5 px-2 py-0.5 font-mono text-[11px] tracking-wider text-primary animate-glow">
+                {r.code}
               </span>
             ) : (
               <span className="h-5 w-24 rounded-md border border-border bg-muted/50" />
@@ -306,7 +310,7 @@ const PASOS: Paso[] = [
   {
     icon: Settings, color: 'text-rose-400', bg: 'bg-rose-500/10',
     titulo: 'Configuración',
-    descripcion: 'Ajustá los datos de tu congregación, el tema claro/oscuro y otras preferencias. ¡Listo, ya podés empezar a usar la app!',
+    descripcion: 'Ajustá los datos de tu congregación y el tema claro/oscuro. Si sos organizador, desde "Colaboradores" generás códigos de invitación de un solo uso para que otros hermanos te ayuden a armar el programa. ¡Listo, ya podés empezar a usar la app!',
     Mock: MockConfiguracion,
   },
 ]

@@ -279,6 +279,13 @@ export default function ProgramarPage() {
   useEffect(() => { try { localStorage.setItem('vym_prog_tipo', tipo) } catch {} }, [tipo])
   useEffect(() => { try { localStorage.setItem('vym_prog_salaaux', String(usarSalaAux)) } catch {} }, [usarSalaAux])
 
+  // Cambiar entre la reunión de entre semana y la de fin de semana, subiendo al
+  // inicio para ver el otro programa desde arriba.
+  function irAReunion(t: TipoReunion) {
+    setTipo(t)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function setAsig(parte: ParteTipo, hermanoId: string) {
     setAsigs(prev => ({ ...prev, [parte]: hermanoId || undefined }))
   }
@@ -461,7 +468,7 @@ const secciones = agruparPorSeccion()
       </div>
 
       {/* Selector de tipo */}
-      <div className="flex gap-2 mb-6 p-1 rounded-lg bg-muted w-full sm:w-fit">
+      <div className="flex gap-2 mb-6 p-1 rounded-lg bg-muted w-full sm:w-fit mx-auto justify-center">
         <button
           onClick={() => setTipo('semana')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -773,6 +780,14 @@ const secciones = agruparPorSeccion()
               </div>
             </CardContent>
           </Card>
+
+          {/* Ir a la reunión de fin de semana */}
+          <div className="flex justify-end mb-6">
+            <Button variant="outline" onClick={() => irAReunion('fds')}>
+              Ir a reunión fin de semana
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </>
       )}
 
@@ -968,6 +983,14 @@ const secciones = agruparPorSeccion()
               </div>
             </CardContent>
           </Card>
+
+          {/* Ir a la reunión de entre semana */}
+          <div className="flex justify-start mb-6">
+            <Button variant="outline" onClick={() => irAReunion('semana')}>
+              <ChevronLeft className="h-4 w-4" />
+              Ir a reunión de entre semana
+            </Button>
+          </div>
         </>
       )}
 

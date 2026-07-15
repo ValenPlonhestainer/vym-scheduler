@@ -31,7 +31,9 @@ import os from 'os'
 
 console.log('[VyM] main.ts cargado, process.type:', process.type, 'electron:', process.versions.electron)
 
-const PORT = 3721
+// Puerto base. Si está ocupado (otra copia o un proceso zombi de una corrida
+// anterior), se busca el siguiente libre en startNextServer. Por eso es `let`.
+let PORT = 3721
 
 // Provider de updates en Cloudflare R2 (mismo bucket que electron-updater).
 const R2_BASE = 'https://pub-ea9f59664d6d4742a8da9c6c3db561fe.r2.dev'
@@ -127,6 +129,54 @@ async function checkUpdateWin7(): Promise<void> {
   }
 }
 
+// Busca el primer puerto libre a partir de `start`. Evita el EADDRINUSE cuando
+// el 3721 quedó tomado por otra instancia o por un proceso anterior colgado.
+function findFreePort(start: number, attempts = 20): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let port = start
+    let tries = 0
+    const tryPort = () => {
+      const tester = createServer()
+      tester.once('error', (err: NodeJS.ErrnoException) => {
+        tester.close()
+        if (err.code === 'EADDRINUSE' && tries < attempts) {
+          tries++
+          port++
+          tryPort()
+        } else {
+          reject(err)
+        }
+      })
+      tester.once('listening', () => {
+        tester.close(() => resolve(port))
+      })
+      tester.listen(port, '127.0.0.1')
+    }
+    tryPort()
+  })
+}
+
+// Traduce los errores de arranque más comunes a un mensaje claro en español.
+function traducirError(err: unknown): string {
+  const e = err as NodeJS.ErrnoException
+  const raw = String(err)
+  switch (e?.code) {
+    case 'EADDRINUSE':
+      return 'No se pudo iniciar porque el puerto que usa la app está ocupado. ' +
+        'Puede que la aplicación ya esté abierta o que haya quedado un proceso ' +
+        'anterior corriendo. Cerrá todas las ventanas de VyM Scheduler (o reiniciá ' +
+        'la PC) y volvé a intentar.'
+    case 'EACCES':
+      return 'El sistema bloqueó el acceso al puerto o a un archivo necesario. ' +
+        'Probá ejecutar la app como administrador o revisá el antivirus/firewall.'
+    case 'ENOENT':
+      return 'Falta un archivo necesario para iniciar la app. Puede que la ' +
+        'instalación esté dañada; probá reinstalarla.'
+    default:
+      return `Ocurrió un error inesperado al iniciar la aplicación.\n\nDetalle técnico: ${raw}`
+  }
+}
+
 async function startNextServer(logStream: fs.WriteStream): Promise<void> {
   const dir = app.isPackaged
     ? path.join(process.resourcesPath, 'app.asar')
@@ -135,6 +185,11 @@ async function startNextServer(logStream: fs.WriteStream): Promise<void> {
   logStream.write(`\n[${new Date().toISOString()}] Iniciando Next.js (in-process)\n`)
   logStream.write(`  dir: ${dir}\n`)
   logStream.write(`  isPackaged: ${app.isPackaged}\n`)
+
+  // Elegí un puerto libre a partir del base (3721). Evita EADDRINUSE si quedó
+  // ocupado. Reasignamos el PORT del módulo para que loadURL apunte al correcto.
+  PORT = await findFreePort(PORT)
+  logStream.write(`  Puerto elegido: ${PORT}\n`)
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const nextMod: any = require('next')
@@ -288,23 +343,37 @@ function setupAutoUpdater() {
   }
 }
 
-app.whenReady().then(async () => {
-  process.env.VYM_USER_DATA = app.getPath('userData')
+// Bloqueo de instancia única: si ya hay una copia abierta, esta segunda no
+// arranca (evita el EADDRINUSE por doble apertura) y enfoca la ventana existente.
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
 
-  const logPath = path.join(app.getPath('userData'), 'startup.log')
-  const logStream = fs.createWriteStream(logPath, { flags: 'a' })
-  try {
-    await startNextServer(logStream)
-    await createMainWindow()
-    isStartingUp = false
-    _updateLogStream = logStream
-    setupAutoUpdater()
-  } catch (err) {
-    logStream.write(`[fatal] ${String(err)}\n`)
-    dialog.showErrorBox(
-      'Error al iniciar VyM Scheduler',
-      `${String(err)}\n\nRevisá el log en:\n${logPath}`
-    )
-    app.quit()
-  }
-})
+  app.whenReady().then(async () => {
+    process.env.VYM_USER_DATA = app.getPath('userData')
+
+    const logPath = path.join(app.getPath('userData'), 'startup.log')
+    const logStream = fs.createWriteStream(logPath, { flags: 'a' })
+    try {
+      await startNextServer(logStream)
+      await createMainWindow()
+      isStartingUp = false
+      _updateLogStream = logStream
+      setupAutoUpdater()
+    } catch (err) {
+      logStream.write(`[fatal] ${String(err)}\n`)
+      dialog.showErrorBox(
+        'Error al iniciar VyM Scheduler',
+        `${traducirError(err)}\n\nRevisá el log en:\n${logPath}`
+      )
+      app.quit()
+    }
+  })
+}

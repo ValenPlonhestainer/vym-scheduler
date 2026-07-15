@@ -12,7 +12,7 @@ export async function GET() {
   const supabase = getServiceSupabase()
   const { data, error } = await supabase
     .from('sugerencias')
-    .select('id, texto, created_at, congregations(name)')
+    .select('id, texto, created_at, congregaciones(nombre)')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -21,7 +21,7 @@ export async function GET() {
     id: r.id as string,
     texto: r.texto as string,
     created_at: r.created_at as string,
-    congregacion: ((r.congregations as { name?: string } | null)?.name) ?? '—',
+    congregacion: ((r.congregaciones as { nombre?: string } | null)?.nombre) ?? '—',
   }))
   return NextResponse.json({ sugerencias })
 }

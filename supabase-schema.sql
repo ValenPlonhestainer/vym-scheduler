@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS asignaciones_fds (
 -- ── Sugerencias ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sugerencias (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  congregation_id  uuid NOT NULL REFERENCES congregations(id) ON DELETE CASCADE,
+  congregation_id  uuid NOT NULL REFERENCES congregaciones(id) ON DELETE CASCADE,
   texto            text NOT NULL,
   created_by       uuid,
   created_at       timestamptz NOT NULL DEFAULT now()

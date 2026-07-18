@@ -12,6 +12,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // La ruta de recordatorios automáticos la llama el bot (server-to-server, sin
+  // sesión); se autentica con su propia clave secreta, no con cookies.
+  if (pathname.startsWith('/api/recordatorios-auto')) {
+    return NextResponse.next()
+  }
+
   // Selector de congregación: la cuenta admin ya está logueada (tiene user_id)
   // pero todavía no eligió congregación (no hay congregation_id).
   if (pathname === '/seleccionar') {

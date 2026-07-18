@@ -10,6 +10,7 @@ import { getSemanas, deleteSemana, getAllAsignaciones, getSemanasFDS, deleteSema
 import { Semana, SemanaFDS, Asignacion } from '@/lib/types'
 import { formatFechaCorta } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { ToggleAutoRecordatorio } from '@/components/recordatorios/toggle-auto-recordatorio'
 
 type EntradaSemana = {
   lunes: string
@@ -182,6 +183,7 @@ export default function HistorialPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
+                                  <ToggleAutoRecordatorio id={s.id} tipo="semana" inicial={s.recordatorioAuto ?? true} />
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-400" onClick={e => handleDeleteSemana(e, s)}>
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
@@ -212,6 +214,7 @@ export default function HistorialPage() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
+                                  <ToggleAutoRecordatorio id={f.id} tipo="fds" inicial={f.recordatorioAuto ?? true} />
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-400" onClick={e => handleDeleteFDS(e, f)}>
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
@@ -253,6 +256,7 @@ export default function HistorialPage() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
+                                <ToggleAutoRecordatorio id={s.id} tipo="semana" inicial={s.recordatorioAuto ?? true} />
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={e => handleDeleteSemana(e, s)}>
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
@@ -279,6 +283,7 @@ export default function HistorialPage() {
                                 {f.oradorNombre && <p className="text-[10px] text-muted-foreground">Orador: {f.oradorNombre}</p>}
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
+                                <ToggleAutoRecordatorio id={f.id} tipo="fds" inicial={f.recordatorioAuto ?? true} />
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={e => handleDeleteFDS(e, f)}>
                                   <Trash2 className="h-3 w-3" />
                                 </Button>

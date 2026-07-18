@@ -57,6 +57,7 @@ const defaultForm = (): Omit<Hermano, 'id'> => ({
   rol: 'publicador',
   activo: true,
   notas: '',
+  telefono: '',
   privilegios: getPrivilegiosDefecto('publicador'),
 })
 
@@ -75,6 +76,7 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
             rol: hermano.rol,
             activo: hermano.activo,
             notas: hermano.notas ?? '',
+            telefono: hermano.telefono ?? '',
             // Backfill de defaults para datos viejos que no tengan campos nuevos (ej: microfonos)
             privilegios: { ...getPrivilegiosDefecto(hermano.rol), ...hermano.privilegios },
           }
@@ -285,6 +287,21 @@ export function HermanoDialog({ open, onOpenChange, hermano, hermanos, onSaved }
               </div>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="telefono">Teléfono / WhatsApp (opcional)</Label>
+            <Input
+              id="telefono"
+              type="tel"
+              inputMode="tel"
+              value={form.telefono ?? ''}
+              onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))}
+              placeholder="Ej: +5492664123456"
+            />
+            <p className="text-xs text-muted-foreground">
+              Con código de país. Se usa para enviarle recordatorios de sus asignaciones por WhatsApp.
+            </p>
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="notas">Notas (opcional)</Label>

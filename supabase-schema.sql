@@ -27,9 +27,12 @@ CREATE TABLE IF NOT EXISTS hermanos (
   rol              text NOT NULL CHECK (rol IN ('anciano', 'siervo', 'publicador', 'hermana')),
   activo           boolean NOT NULL DEFAULT true,
   notas            text,
+  telefono         text,
   privilegios      jsonb,
   created_at       timestamptz NOT NULL DEFAULT now()
 );
+-- Migración para bases existentes: agrega la columna si todavía no está.
+ALTER TABLE hermanos ADD COLUMN IF NOT EXISTS telefono text;
 
 -- ── Semanas entre semana ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS semanas (
@@ -43,8 +46,11 @@ CREATE TABLE IF NOT EXISTS semanas (
   cancion_cierre     integer,
   num_estudiantes    integer,
   titulos            jsonb,
+  recordatorio_auto  boolean NOT NULL DEFAULT true,
   created_at         timestamptz NOT NULL DEFAULT now()
 );
+-- Migración para bases existentes:
+ALTER TABLE semanas ADD COLUMN IF NOT EXISTS recordatorio_auto boolean NOT NULL DEFAULT true;
 
 -- ── Asignaciones entre semana ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS asignaciones (
@@ -70,8 +76,11 @@ CREATE TABLE IF NOT EXISTS semanas_fds (
   orador_nombre       text,
   orador_congregacion text,
   oracion_cierre_texto text,
+  recordatorio_auto   boolean NOT NULL DEFAULT true,
   created_at          timestamptz NOT NULL DEFAULT now()
 );
+-- Migración para bases existentes:
+ALTER TABLE semanas_fds ADD COLUMN IF NOT EXISTS recordatorio_auto boolean NOT NULL DEFAULT true;
 
 -- ── Asignaciones fin de semana ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS asignaciones_fds (

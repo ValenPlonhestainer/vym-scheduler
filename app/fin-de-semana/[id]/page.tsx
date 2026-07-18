@@ -19,6 +19,7 @@ import { formatFecha } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { bocetoPDFLabel } from '@/data/bocetos'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { BotonRecordatorios } from '@/components/recordatorios/boton-recordatorios'
 
 type Asigs = Partial<Record<ParteTipoFDS, string>>
 
@@ -88,6 +89,7 @@ export default function DetalleFDSPage() {
           <h1 className="text-xl font-bold text-foreground truncate">Fin de semana</h1>
           <p className="text-sm text-muted-foreground capitalize">{formatFecha(semana.fecha)}</p>
         </div>
+        <BotonRecordatorios fechaReferencia={semana.fecha} />
         <Button onClick={handleGuardar} disabled={saving} size="sm">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           <span className="hidden sm:inline">Guardar cambios</span>

@@ -27,6 +27,7 @@ export interface Hermano {
   rol: Rol
   activo: boolean
   notas?: string
+  telefono?: string
   privilegios?: Privilegios
 }
 
@@ -250,6 +251,7 @@ export interface Semana {
   microfonista2?: string
   acomodador1?: string
   acomodador2?: string
+  recordatorioAuto?: boolean // aviso automático por WhatsApp (default true)
 }
 
 export interface Asignacion {
@@ -329,6 +331,7 @@ export interface SemanaFDS {
   microfonista2?: string
   acomodador1?: string
   acomodador2?: string
+  recordatorioAuto?: boolean // aviso automático por WhatsApp (default true)
 }
 
 export interface AsignacionFDS {

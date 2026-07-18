@@ -2,11 +2,14 @@
 
 import { cookies } from 'next/headers'
 import { randomUUID } from 'crypto'
+import https from 'https'
+import http from 'http'
 import { getAuthedSupabase } from './supabase'
 import {
   Hermano, Semana, Asignacion, ParteTipo,
   SemanaFDS, AsignacionFDS, ParteTipoFDS,
 } from './types'
+import { armarMensajesRecordatorio } from './recordatorios-core'
 
 function getCongId(): string {
   const id = cookies().get('congregation_id')?.value
@@ -24,6 +27,7 @@ function dbToHermano(r: Record<string, unknown>): Hermano {
     rol: r.rol as Hermano['rol'],
     activo: r.activo as boolean,
     notas: (r.notas as string | null) ?? undefined,
+    telefono: (r.telefono as string | null) ?? undefined,
     privilegios: r.privilegios
       ? (typeof r.privilegios === 'string' ? JSON.parse(r.privilegios) : r.privilegios)
       : undefined,
@@ -47,6 +51,7 @@ function dbToSemana(r: Record<string, unknown>): Semana {
     microfonista2: (r.microfonista_2 as string | null) ?? undefined,
     acomodador1: (r.acomodador_1 as string | null) ?? undefined,
     acomodador2: (r.acomodador_2 as string | null) ?? undefined,
+    recordatorioAuto: (r.recordatorio_auto as boolean | null) ?? true,
   }
 }
 
@@ -77,6 +82,7 @@ function dbToSemanaFDS(r: Record<string, unknown>): SemanaFDS {
     microfonista2: (r.microfonista_2 as string | null) ?? undefined,
     acomodador1: (r.acomodador_1 as string | null) ?? undefined,
     acomodador2: (r.acomodador_2 as string | null) ?? undefined,
+    recordatorioAuto: (r.recordatorio_auto as boolean | null) ?? true,
   }
 }
 
@@ -115,6 +121,7 @@ export async function saveHermano(hermano: Hermano): Promise<{ error?: string }>
       rol: hermano.rol,
       activo: hermano.activo,
       notas: hermano.notas ?? null,
+      telefono: hermano.telefono ?? null,
       privilegios: hermano.privilegios ?? null,
     })
     if (error) return { error: error.message }
@@ -197,6 +204,7 @@ export async function saveSemana(semana: Semana): Promise<{ error?: string }> {
       microfonista_2: semana.microfonista2 ?? null,
       acomodador_1: semana.acomodador1 ?? null,
       acomodador_2: semana.acomodador2 ?? null,
+      recordatorio_auto: semana.recordatorioAuto ?? true,
     })
     if (error) return { error: error.message }
     return {}
@@ -366,6 +374,7 @@ export async function saveSemanaFDS(semana: SemanaFDS): Promise<{ error?: string
       microfonista_2: semana.microfonista2 ?? null,
       acomodador_1: semana.acomodador1 ?? null,
       acomodador_2: semana.acomodador2 ?? null,
+      recordatorio_auto: semana.recordatorioAuto ?? true,
     })
     if (error) return { error: error.message }
     return {}
@@ -446,5 +455,172 @@ export async function saveAllAsignacionesFDS(
     return {}
   } catch (err) {
     return { error: String(err) }
+  }
+}
+
+// ── Recordatorios por WhatsApp ─────────────────────────────────────
+// Envía por WhatsApp (a través del bot) un recordatorio a cada hermano que
+// tiene una parte asignada. El bot vive aparte (Railway); acá solo armamos los
+// mensajes (con recordatorios-core) y se los mandamos a su "buzón" con una clave.
+// La función está habilitada SOLO para la congregación configurada
+// (RECORDATORIOS_CONGREGACION, por defecto "Carpinteria"), porque el bot usa un
+// único WhatsApp; otras congregaciones no deben disparar envíos.
+
+function normalizarNombre(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase()
+}
+
+function congregacionObjetivo(): string {
+  return normalizarNombre(process.env.RECORDATORIOS_CONGREGACION ?? 'Carpinteria')
+}
+
+// ¿La congregación logueada tiene habilitados los recordatorios por WhatsApp?
+export async function recordatoriosHabilitados(): Promise<boolean> {
+  try {
+    const nombre = normalizarNombre(await getCongregacion())
+    const objetivo = congregacionObjetivo()
+    return !!nombre && !!objetivo && (nombre === objetivo || nombre.includes(objetivo))
+  } catch {
+    return false
+  }
+}
+
+// Activa/desactiva el aviso AUTOMÁTICO de una reunión puntual (toggle del historial).
+// No afecta al botón manual, que envía igual.
+export async function setRecordatorioAuto(
+  id: string,
+  tipo: 'semana' | 'fds',
+  valor: boolean,
+): Promise<{ error?: string }> {
+  try {
+    const congId = getCongId()
+    const sb = await getAuthedSupabase()
+    const tabla = tipo === 'fds' ? 'semanas_fds' : 'semanas'
+    const { error } = await sb
+      .from(tabla)
+      .update({ recordatorio_auto: valor })
+      .eq('id', id)
+      .eq('congregation_id', congId)
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
+  }
+}
+
+// POST de JSON usando el módulo http/https de Node (no fetch). Es el mismo patrón
+// que license.ts: en Windows 7 el TLS de fetch/Chromium puede fallar, pero el de
+// Node funciona. Sirve tanto para http:// (local) como https:// (Railway).
+function postJsonNode(
+  url: string,
+  payload: unknown,
+  timeoutMs = 120000,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    let parsed: URL
+    try { parsed = new URL(url) } catch { reject(new Error('La URL del bot no es válida')); return }
+    const lib = parsed.protocol === 'http:' ? http : https
+    const body = JSON.stringify(payload)
+    const req = lib.request(
+      {
+        hostname: parsed.hostname,
+        port: parsed.port || (parsed.protocol === 'http:' ? 80 : 443),
+        path: parsed.pathname + parsed.search,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      },
+      (res) => {
+        let data = ''
+        res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }))
+      },
+    )
+    req.setTimeout(timeoutMs, () => req.destroy(new Error('El bot no respondió a tiempo')))
+    req.on('error', reject)
+    req.write(body)
+    req.end()
+  })
+}
+
+// Resultado del envío (tipo interno; el componente lo infiere con Awaited<ReturnType<...>>).
+interface ResultadoRecordatorios {
+  ok: boolean
+  enviados: number
+  errores: number
+  sinTelefono: string[]
+  totalConParte: number
+  detalleErrores: string[]
+  mensajeError?: string
+}
+
+// Envía los recordatorios de TODA la semana (entre semana + fin de semana) de la
+// semana a la que pertenece `fechaReferencia` (la fecha de la reunión que se está
+// viendo). Junta las partes de ambas reuniones en un solo mensaje por hermano.
+export async function enviarRecordatoriosSemanaCompleta(
+  fechaReferencia: string,
+): Promise<ResultadoRecordatorios> {
+  const base: ResultadoRecordatorios = {
+    ok: false, enviados: 0, errores: 0, sinTelefono: [], totalConParte: 0, detalleErrores: [],
+  }
+
+  const url = process.env.BOT_RECORDATORIOS_URL
+  const secret = process.env.BOT_RECORDATORIOS_SECRET
+  if (!url || !secret) {
+    return { ...base, mensajeError: 'El bot de recordatorios todavía no está configurado (faltan las variables BOT_RECORDATORIOS_URL y BOT_RECORDATORIOS_SECRET).' }
+  }
+
+  if (!(await recordatoriosHabilitados())) {
+    return { ...base, mensajeError: 'Los recordatorios por WhatsApp están habilitados solo para la congregación configurada.' }
+  }
+
+  try {
+    const congId = getCongId()
+    const sb = await getAuthedSupabase()
+    const { mensajes, sinTelefono, totalConParte } =
+      await armarMensajesRecordatorio(sb, congId, fechaReferencia, 'semana-completa')
+
+    base.totalConParte = totalConParte
+    base.sinTelefono = sinTelefono
+
+    if (mensajes.length === 0) {
+      return {
+        ...base,
+        ok: true,
+        mensajeError: sinTelefono.length
+          ? 'Ninguno de los asignados tiene teléfono cargado.'
+          : 'No hay hermanos asignados en esta semana.',
+      }
+    }
+
+    let resp: { status: number; body: string }
+    try {
+      resp = await postJsonNode(url, { secret, mensajes })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return { ...base, mensajeError: `No se pudo contactar al bot: ${msg}` }
+    }
+
+    let data: {
+      ok?: boolean
+      error?: string
+      enviados?: number
+      errores?: number
+      detalle?: Array<{ nombre?: string; ok?: boolean; error?: string }>
+    } | null = null
+    try { data = JSON.parse(resp.body) } catch { /* respuesta no-JSON */ }
+
+    if (resp.status < 200 || resp.status >= 300 || !data?.ok) {
+      return { ...base, mensajeError: data?.error ?? `El bot respondió con un error (HTTP ${resp.status}).` }
+    }
+
+    base.enviados = data.enviados ?? mensajes.length
+    base.errores = data.errores ?? 0
+    base.detalleErrores = (data.detalle ?? [])
+      .filter(d => d.ok === false)
+      .map(d => `${d.nombre ?? '?'}: ${d.error ?? 'error'}`)
+    base.ok = true
+    return base
+  } catch (err) {
+    return { ...base, mensajeError: String(err) }
   }
 }

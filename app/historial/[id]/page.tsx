@@ -15,6 +15,7 @@ import {
 } from '@/lib/types'
 import { formatFecha } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { BotonRecordatorios } from '@/components/recordatorios/boton-recordatorios'
 
 type Asigs = Partial<Record<ParteTipo, string>>
 
@@ -154,6 +155,7 @@ export default function SemanaDetailPage() {
           {reloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           <span className="hidden sm:inline">jw.org</span>
         </Button>
+        <BotonRecordatorios fechaReferencia={semana.fecha} />
         <Button size="sm" onClick={handleGuardar} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Guardar

@@ -18,6 +18,13 @@ CREATE TABLE IF NOT EXISTS congregations (
   settings   jsonb
 );
 
+-- La tabla en producción se llama `congregaciones` (con `nombre`). Config de
+-- recordatorios por WhatsApp: qué día se reúne la congregación (ISO: 1=lunes … 7=domingo)
+-- y el contacto que aparece al pie del mensaje.
+ALTER TABLE congregaciones ADD COLUMN IF NOT EXISTS dia_entre_semana     integer;
+ALTER TABLE congregaciones ADD COLUMN IF NOT EXISTS dia_fin_de_semana    integer;
+ALTER TABLE congregaciones ADD COLUMN IF NOT EXISTS contacto_recordatorios text;
+
 -- ── Hermanos ──────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS hermanos (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),

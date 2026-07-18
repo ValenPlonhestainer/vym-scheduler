@@ -508,6 +508,62 @@ export async function setRecordatorioAuto(
   }
 }
 
+// Config de recordatorios de la congregación: días de reunión (ISO 1=lunes … 7=domingo)
+// y contacto para el pie del mensaje. `configurado` = ya eligió los días alguna vez.
+export async function getConfigRecordatorios(): Promise<{
+  diaEntreSemana: number | null
+  diaFinDeSemana: number | null
+  contacto: string
+  configurado: boolean
+  habilitado: boolean
+}> {
+  const vacio = { diaEntreSemana: null, diaFinDeSemana: null, contacto: '', configurado: false, habilitado: false }
+  try {
+    const habilitado = await recordatoriosHabilitados()
+    const congId = getCongId()
+    const sb = await getAuthedSupabase()
+    const { data } = await sb
+      .from('congregaciones')
+      .select('dia_entre_semana, dia_fin_de_semana, contacto_recordatorios')
+      .eq('id', congId)
+      .maybeSingle()
+    const diaEntreSemana = (data?.dia_entre_semana as number | null) ?? null
+    const diaFinDeSemana = (data?.dia_fin_de_semana as number | null) ?? null
+    return {
+      diaEntreSemana,
+      diaFinDeSemana,
+      contacto: (data?.contacto_recordatorios as string | null) ?? '',
+      configurado: diaEntreSemana != null && diaFinDeSemana != null,
+      habilitado,
+    }
+  } catch {
+    return vacio
+  }
+}
+
+export async function saveConfigRecordatorios(
+  diaEntreSemana: number,
+  diaFinDeSemana: number,
+  contacto: string,
+): Promise<{ error?: string }> {
+  try {
+    const congId = getCongId()
+    const sb = await getAuthedSupabase()
+    const { error } = await sb
+      .from('congregaciones')
+      .update({
+        dia_entre_semana: diaEntreSemana,
+        dia_fin_de_semana: diaFinDeSemana,
+        contacto_recordatorios: contacto.trim() || null,
+      })
+      .eq('id', congId)
+    if (error) return { error: error.message }
+    return {}
+  } catch (err) {
+    return { error: String(err) }
+  }
+}
+
 // POST de JSON usando el módulo http/https de Node (no fetch). Es el mismo patrón
 // que license.ts: en Windows 7 el TLS de fetch/Chromium puede fallar, pero el de
 // Node funciona. Sirve tanto para http:// (local) como https:// (Railway).

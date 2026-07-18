@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { getCongregacion } from '@/lib/actions'
 import { useTheme } from '@/components/theme-provider'
+import { ConfigRecordatoriosSeccion } from '@/components/recordatorios/config-recordatorios-seccion'
 
 interface Invitacion {
   id: string
@@ -102,6 +103,9 @@ export default function ConfiguracionPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Recordatorios por WhatsApp — solo en la congregación habilitada */}
+        <ConfigRecordatoriosSeccion />
 
         {/* Invitaciones — solo organizadores */}
         {rol === 'owner' && <Card>

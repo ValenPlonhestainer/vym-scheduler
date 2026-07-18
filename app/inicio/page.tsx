@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Users, Calendar, History, FileDown } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { OnboardingGate } from '@/components/onboarding/onboarding-dialog'
+import { ConfigRecordatoriosGate } from '@/components/recordatorios/config-recordatorios-gate'
 
 const modulos = [
   {
@@ -48,6 +49,7 @@ export default function InicioPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <OnboardingGate />
+      <ConfigRecordatoriosGate />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Inicio</h1>
         <p className="text-sm text-muted-foreground mt-1">Seleccioná un módulo para comenzar.</p>

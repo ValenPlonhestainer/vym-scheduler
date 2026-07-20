@@ -337,12 +337,26 @@ export function generarPDFMensual(
       doc.setTextColor(10, 10, 10)
       doc.text(`${vcCounter}.  Estudio bíblico de la congregación`, mL + 3, y)
 
-      const partes: string[] = []
-      if (conductor) partes.push(`Conductor: ${conductor}`)
-      if (lector) partes.push(`Lector: ${lector}`)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(60, 60, 60)
-      doc.text(partes.join('   '), pageW - mR, y, { align: 'right' })
+      // Etiquetas "Conductor"/"Lector" en negro (bold) y los nombres en gris.
+      const segmentos: Array<[string, string]> = []
+      if (conductor) segmentos.push(['Conductor: ', conductor])
+      if (lector) segmentos.push(['Lector: ', lector])
+      doc.setFontSize(8.5)
+      const SEP = '   '
+      let anchoTotal = 0
+      segmentos.forEach(([lab, val], i) => {
+        doc.setFont('helvetica', 'bold'); anchoTotal += doc.getTextWidth(lab)
+        doc.setFont('helvetica', 'normal'); anchoTotal += doc.getTextWidth(val)
+        if (i < segmentos.length - 1) anchoTotal += doc.getTextWidth(SEP)
+      })
+      let xSeg = pageW - mR - anchoTotal
+      segmentos.forEach(([lab, val], i) => {
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(10, 10, 10)
+        doc.text(lab, xSeg, y); xSeg += doc.getTextWidth(lab)
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60)
+        doc.text(val, xSeg, y); xSeg += doc.getTextWidth(val)
+        if (i < segmentos.length - 1) xSeg += doc.getTextWidth(SEP)
+      })
       doc.setTextColor(0, 0, 0)
       y += ROW_H
     }

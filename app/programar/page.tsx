@@ -553,19 +553,6 @@ const secciones = agruparPorSeccion()
                   onChange={e => setSemana(p => ({ ...p, tema: e.target.value }))}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-3">
-                {(['cancionApertura', 'cancionIntermedia', 'cancionCierre'] as const).map(c => (
-                  <div key={c} className="space-y-1.5">
-                    <Label>{c === 'cancionApertura' ? 'Canción apertura' : c === 'cancionIntermedia' ? 'Canción intermedia' : 'Canción cierre'}</Label>
-                    <Input
-                      type="number"
-                      placeholder="Nº"
-                      value={semana[c] ?? ''}
-                      onChange={e => setSemana(p => ({ ...p, [c]: e.target.value ? +e.target.value : undefined }))}
-                    />
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
 

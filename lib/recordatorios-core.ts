@@ -122,21 +122,53 @@ function etiquetaParteSemana(parte: string, titulos: Titulos): string {
 
 interface Bloque { etiquetaReunion: string; fecha: string; partes: string[] }
 
+// Nombres compuestos comunes: si el hermano se llama así, se muestran los dos
+// nombres (no solo el primero). El resto sale solo con el primer nombre.
+const NOMBRES_COMPUESTOS = new Set([
+  'juan pablo', 'juan carlos', 'juan jose', 'juan manuel', 'juan cruz', 'juan ignacio',
+  'juan martin', 'juan bautista', 'juan andres',
+  'jose luis', 'jose maria', 'jose manuel', 'jose antonio', 'jose ignacio', 'jose alberto',
+  'maria jose', 'maria fernanda', 'maria laura', 'maria eugenia', 'maria paz', 'maria sol',
+  'maria belen', 'maria del carmen', 'maria de los angeles',
+  'ana maria', 'ana paula', 'ana laura', 'ana clara',
+  'luis alberto', 'carlos alberto', 'miguel angel', 'jesus maria',
+])
+
+function sinAcentos(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
+// Nombre a mostrar en el saludo: el primer nombre, o los dos si es compuesto.
+function nombreSaludo(nombreCompleto: string): string {
+  const tokens = nombreCompleto.trim().split(/\s+/)
+  if (tokens.length >= 3 && NOMBRES_COMPUESTOS.has(sinAcentos(`${tokens[0]} ${tokens[1]} ${tokens[2]}`))) {
+    return `${tokens[0]} ${tokens[1]} ${tokens[2]}` // ej: "María de los Angeles"
+  }
+  if (tokens.length >= 2 && NOMBRES_COMPUESTOS.has(sinAcentos(`${tokens[0]} ${tokens[1]}`))) {
+    return `${tokens[0]} ${tokens[1]}`
+  }
+  return tokens[0] || nombreCompleto
+}
+
 // Arma UN mensaje por hermano, juntando (si hay) sus partes de las dos reuniones.
+// Siempre en formato con viñetas, para que la parte se distinga del resto del texto.
 function construirTexto(nombre: string, bloques: Bloque[], contacto: string | null): string {
-  const saludo = `Hola ${nombre} 🙂`
+  // Solo el primer nombre en el saludo (sin apellido; suena menos formal),
+  // salvo nombres compuestos como "Juan Pablo".
+  const saludo = `Hola ${nombreSaludo(nombre)} 🙂`
   const cierre = contacto
     ? `Por cualquier duda o inconveniente comunicate con ${contacto}`
     : 'Por cualquier cosa avisá. ¡Gracias!'
 
-  if (bloques.length === 1 && bloques[0].partes.length === 1) {
-    return `${saludo} Te paso un recordatorio: en la reunión del ${fechaLegible(bloques[0].fecha)} ` +
-      `tenés asignado: ${bloques[0].partes[0]}. ${cierre}`
-  }
+  const totalPartes = bloques.reduce((n, b) => n + b.partes.length, 0)
+  const intro = totalPartes === 1
+    ? 'Te paso un recordatorio de tu asignación de esta semana:'
+    : 'Te paso un recordatorio de tus asignaciones de esta semana:'
+
   const cuerpo = bloques
     .map(b => `${b.etiquetaReunion} (${fechaLegible(b.fecha)}):\n${b.partes.map(p => `• ${p}`).join('\n')}`)
     .join('\n\n')
-  return `${saludo} Te paso un recordatorio de tus asignaciones de esta semana:\n\n${cuerpo}\n\n${cierre}`
+  return `${saludo} ${intro}\n\n${cuerpo}\n\n\n${cierre}`
 }
 
 interface HermanoMin { id: string; nombre: string; telefono: string }

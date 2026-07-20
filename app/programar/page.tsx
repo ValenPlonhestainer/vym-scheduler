@@ -279,13 +279,6 @@ export default function ProgramarPage() {
   useEffect(() => { try { localStorage.setItem('vym_prog_tipo', tipo) } catch {} }, [tipo])
   useEffect(() => { try { localStorage.setItem('vym_prog_salaaux', String(usarSalaAux)) } catch {} }, [usarSalaAux])
 
-  // Cambiar entre la reunión de entre semana y la de fin de semana, subiendo al
-  // inicio para ver el otro programa desde arriba.
-  function irAReunion(t: TipoReunion) {
-    setTipo(t)
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
   function setAsig(parte: ParteTipo, hermanoId: string) {
     setAsigs(prev => ({ ...prev, [parte]: hermanoId || undefined }))
   }
@@ -304,97 +297,59 @@ export default function ProgramarPage() {
     toast({ title: 'Semana cargada', description: 'Se cargaron la reunión entre semana y la de fin de semana.' })
   }
 
-  async function handleGuardarSemana() {
-    if (!semana.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
-    const fechaNorm = semana.fecha.replace(/-/g, '/')
-    const existente = todasSemanas.find(s => s.id !== semana.id && s.fecha.replace(/-/g, '/') === fechaNorm)
-    if (existente) {
-      setDuplicadoId(existente.id)
-      setDuplicadoTipo('semana')
-      setDuplicadoOpen(true)
+// Guarda las DOS reuniones de la semana (entre semana + fin de semana) con un
+// solo botón. Guarda cada una que tenga fecha; si alguna ya existe, avisa.
+  async function handleGuardarTodo() {
+    const haySemana = !!semana.fecha
+    const hayFDS = !!semanaFDS.fecha
+    if (!haySemana && !hayFDS) {
+      toast({ title: 'Elegí una semana primero', variant: 'destructive' })
       return
     }
-    setSaving(true)
-    const s: Semana = {
-      id: semana.id!,
-      fecha: semana.fecha!,
-      tema: semana.tema ?? '',
-      lecturaBiblica: semana.lecturaBiblica ?? '',
-      cancionApertura: semana.cancionApertura,
-      cancionIntermedia: semana.cancionIntermedia,
-      cancionCierre: semana.cancionCierre,
-      numEstudiantes: semana.numEstudiantes,
-      titulos: semana.titulos ?? {},
-      microfonista1: semana.microfonista1,
-      microfonista2: semana.microfonista2,
-      acomodador1: semana.acomodador1,
-      acomodador2: semana.acomodador2,
+    // Duplicados: si ya hay una reunión guardada para esa fecha, avisamos y paramos.
+    if (haySemana) {
+      const fechaNorm = semana.fecha!.replace(/-/g, '/')
+      const existente = todasSemanas.find(s => s.id !== semana.id && s.fecha.replace(/-/g, '/') === fechaNorm)
+      if (existente) { setDuplicadoId(existente.id); setDuplicadoTipo('semana'); setDuplicadoOpen(true); return }
     }
-    try {
-      const r1 = await saveSemana(s)
-      if (r1.error) { toast({ title: 'Error al guardar', description: r1.error, variant: 'destructive' }); return }
-      const asignArray = Object.entries(asigs)
-        .filter(([, v]) => !!v)
-        .map(([parte, hermanoId]) => ({ parte: parte as ParteTipo, hermanoId: hermanoId! }))
-      const r2 = await saveAllAsignaciones(s.id, asignArray)
-      if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
-      toast({ title: 'Reunión guardada', description: 'La reunión entre semana fue guardada correctamente.' })
-      // Limpiar el formulario con un id NUEVO para que la próxima semana no pise esta.
-      setSemana(nuevaSemanaVacia())
-      setAsigs({})
-      setEpubStatus('idle')
-      setEpubError('')
-      recargarListas()
-    } catch (err) {
-      toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleGuardarFDS() {
-    if (!semanaFDS.fecha) { toast({ title: 'La fecha es obligatoria', variant: 'destructive' }); return }
-    const fechaNorm = semanaFDS.fecha.replace(/-/g, '/')
-    const existente = todasSemanasFDS.find(s => s.id !== semanaFDS.id && s.fecha.replace(/-/g, '/') === fechaNorm)
-    if (existente) {
-      setDuplicadoId(existente.id)
-      setDuplicadoTipo('fds')
-      setDuplicadoOpen(true)
-      return
+    if (hayFDS) {
+      const fechaNormF = semanaFDS.fecha!.replace(/-/g, '/')
+      const existenteF = todasSemanasFDS.find(s => s.id !== semanaFDS.id && s.fecha.replace(/-/g, '/') === fechaNormF)
+      if (existenteF) { setDuplicadoId(existenteF.id); setDuplicadoTipo('fds'); setDuplicadoOpen(true); return }
     }
     setSaving(true)
-    const s: SemanaFDS = {
-      id: semanaFDS.id!,
-      fecha: semanaFDS.fecha!,
-      fechaLocale: semanaFDS.fechaLocale,
-      tituloArticulo: semanaFDS.tituloArticulo,
-      cancionApertura: semanaFDS.cancionApertura,
-      cancionIntermedia: semanaFDS.cancionIntermedia,
-      cancionCierre: semanaFDS.cancionCierre,
-      boceto: semanaFDS.boceto,
-      disertacionTitulo: semanaFDS.disertacionTitulo,
-      oradorNombre: semanaFDS.oradorNombre,
-      oradorCongregacion: semanaFDS.oradorCongregacion,
-      oracionCierreTexto: semanaFDS.oracionCierreTexto,
-      microfonista1: semanaFDS.microfonista1,
-      microfonista2: semanaFDS.microfonista2,
-      acomodador1: semanaFDS.acomodador1,
-      acomodador2: semanaFDS.acomodador2,
-    }
     try {
-      const r1 = await saveSemanaFDS(s)
-      if (r1.error) { toast({ title: 'Error al guardar', description: r1.error, variant: 'destructive' }); return }
-      const asignArray = Object.entries(asigsFDS)
-        .filter(([parte, v]) => !!v && parte !== 'fds_oracion_cierre') // la oración de cierre ahora es texto libre
-        .map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
-      const r2 = await saveAllAsignacionesFDS(s.id, asignArray)
-      if (r2.error) { toast({ title: 'Error al guardar', description: r2.error, variant: 'destructive' }); return }
-      toast({ title: 'Reunión guardada', description: 'La reunión de fin de semana fue guardada correctamente.' })
-      // Limpiar el formulario con un id NUEVO para que la próxima reunión no pise esta.
-      setSemanaFDS(nuevaFDSVacia())
-      setAsigsFDS({})
-      setEpubFDSStatus('idle')
-      setEpubFDSError('')
+      if (haySemana) {
+        const s: Semana = {
+          id: semana.id!, fecha: semana.fecha!, tema: semana.tema ?? '', lecturaBiblica: semana.lecturaBiblica ?? '',
+          cancionApertura: semana.cancionApertura, cancionIntermedia: semana.cancionIntermedia, cancionCierre: semana.cancionCierre,
+          numEstudiantes: semana.numEstudiantes, titulos: semana.titulos ?? {},
+          microfonista1: semana.microfonista1, microfonista2: semana.microfonista2, acomodador1: semana.acomodador1, acomodador2: semana.acomodador2,
+        }
+        const r1 = await saveSemana(s)
+        if (r1.error) { toast({ title: 'Error al guardar (entre semana)', description: r1.error, variant: 'destructive' }); setSaving(false); return }
+        const asignArray = Object.entries(asigs).filter(([, v]) => !!v).map(([parte, hermanoId]) => ({ parte: parte as ParteTipo, hermanoId: hermanoId! }))
+        const r2 = await saveAllAsignaciones(s.id, asignArray)
+        if (r2.error) { toast({ title: 'Error al guardar (entre semana)', description: r2.error, variant: 'destructive' }); setSaving(false); return }
+      }
+      if (hayFDS) {
+        const sf: SemanaFDS = {
+          id: semanaFDS.id!, fecha: semanaFDS.fecha!, fechaLocale: semanaFDS.fechaLocale, tituloArticulo: semanaFDS.tituloArticulo,
+          cancionApertura: semanaFDS.cancionApertura, cancionIntermedia: semanaFDS.cancionIntermedia, cancionCierre: semanaFDS.cancionCierre,
+          boceto: semanaFDS.boceto, disertacionTitulo: semanaFDS.disertacionTitulo, oradorNombre: semanaFDS.oradorNombre,
+          oradorCongregacion: semanaFDS.oradorCongregacion, oracionCierreTexto: semanaFDS.oracionCierreTexto,
+          microfonista1: semanaFDS.microfonista1, microfonista2: semanaFDS.microfonista2, acomodador1: semanaFDS.acomodador1, acomodador2: semanaFDS.acomodador2,
+        }
+        const rf1 = await saveSemanaFDS(sf)
+        if (rf1.error) { toast({ title: 'Error al guardar (fin de semana)', description: rf1.error, variant: 'destructive' }); setSaving(false); return }
+        const asignArrayF = Object.entries(asigsFDS).filter(([parte, v]) => !!v && parte !== 'fds_oracion_cierre').map(([parte, hermanoId]) => ({ parte: parte as ParteTipoFDS, hermanoId: hermanoId! }))
+        const rf2 = await saveAllAsignacionesFDS(sf.id, asignArrayF)
+        if (rf2.error) { toast({ title: 'Error al guardar (fin de semana)', description: rf2.error, variant: 'destructive' }); setSaving(false); return }
+      }
+      toast({ title: 'Semana guardada', description: 'Se guardaron las reuniones de la semana.' })
+      setSemana(nuevaSemanaVacia()); setAsigs({})
+      setSemanaFDS(nuevaFDSVacia()); setAsigsFDS({})
+      setEpubStatus('idle'); setEpubError(''); setEpubFDSStatus('idle'); setEpubFDSError('')
       recargarListas()
     } catch (err) {
       toast({ title: 'Error al guardar', description: String(err), variant: 'destructive' })
@@ -459,47 +414,20 @@ const secciones = agruparPorSeccion()
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Encabezado */}
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold text-foreground flex-1">Nueva reunión</h1>
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => tipo === 'semana' ? handleGuardarSemana() : handleGuardarFDS()}
+            onClick={handleGuardarTodo}
             disabled={saving}
             size="sm"
-            variant="outline"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Guardar
+            Guardar la semana
           </Button>
         </div>
-      </div>
-
-      {/* Selector de tipo */}
-      <div className="flex gap-2 mb-6 p-1 rounded-lg bg-muted w-full sm:w-fit mx-auto justify-center">
-        <button
-          onClick={() => setTipo('semana')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            tipo === 'semana'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Calendar className="h-4 w-4" />
-          Entre semana
-        </button>
-        <button
-          onClick={() => setTipo('fds')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            tipo === 'fds'
-              ? 'bg-purple-600 text-white shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Sun className="h-4 w-4" />
-          Fin de semana
-        </button>
       </div>
 
       {/* Botón único: abre el panel de la guía (elige mes + semana, carga ambas reuniones) */}
@@ -594,9 +522,14 @@ const secciones = agruparPorSeccion()
         </div>
       )}
 
-      {/* ── FORMULARIO ENTRE SEMANA ── */}
-      {tipo === 'semana' && (
-        <>
+      {/* ── LAS DOS REUNIONES, UNA AL LADO DE LA OTRA ── */}
+      <div className="grid grid-cols-2 gap-6 items-start">
+        {/* Columna izquierda: reunión de entre semana */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg font-bold text-foreground">Entre semana</h2>
+          </div>
           <Card className="mb-6">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Datos de la semana</CardTitle>
@@ -793,42 +726,14 @@ const secciones = agruparPorSeccion()
             </CardContent>
           </Card>
 
-          {/* Ir a la reunión de fin de semana */}
-          <div className="flex justify-end mb-6">
-            <Button variant="outline" onClick={() => irAReunion('fds')}>
-              Ir a reunión fin de semana
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+        </div>{/* fin columna entre semana */}
+
+        {/* Columna derecha: reunión de fin de semana */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Sun className="h-5 w-5 text-purple-500" />
+            <h2 className="text-lg font-bold text-foreground">Fin de semana</h2>
           </div>
-        </>
-      )}
-
-      {/* ── POPUP REUNIÓN DUPLICADA ── */}
-      <Dialog open={duplicadoOpen} onOpenChange={setDuplicadoOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Reunión ya existente</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Ya existe una reunión programada para esa fecha. Podés editarla en el historial.
-          </p>
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDuplicadoOpen(false)}>
-              Cerrar
-            </Button>
-            <Button onClick={() => {
-              setDuplicadoOpen(false)
-              router.push(duplicadoTipo === 'semana' ? `/historial/${duplicadoId}` : `/fin-de-semana/${duplicadoId}`)
-            }}>
-              Ir al historial
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── FORMULARIO FIN DE SEMANA ── */}
-      {tipo === 'fds' && (
-        <>
           {/* Datos generales */}
           {semanaFDS.fechaLocale && (
             <Card className="mb-6">
@@ -999,15 +904,31 @@ const secciones = agruparPorSeccion()
             </CardContent>
           </Card>
 
-          {/* Ir a la reunión de entre semana */}
-          <div className="flex justify-start mb-6">
-            <Button variant="outline" onClick={() => irAReunion('semana')}>
-              <ChevronLeft className="h-4 w-4" />
-              Ir a reunión de entre semana
+        </div>{/* fin columna fin de semana */}
+      </div>{/* fin grid de las dos reuniones */}
+
+      {/* ── POPUP REUNIÓN DUPLICADA ── */}
+      <Dialog open={duplicadoOpen} onOpenChange={setDuplicadoOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reunión ya existente</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Ya existe una reunión programada para esa fecha. Podés editarla en el historial.
+          </p>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDuplicadoOpen(false)}>
+              Cerrar
             </Button>
-          </div>
-        </>
-      )}
+            <Button onClick={() => {
+              setDuplicadoOpen(false)
+              router.push(duplicadoTipo === 'semana' ? `/historial/${duplicadoId}` : `/fin-de-semana/${duplicadoId}`)
+            }}>
+              Ir al historial
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )

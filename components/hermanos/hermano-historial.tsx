@@ -26,25 +26,25 @@ export function HermanoHistorial({ hermano, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Historial — {hermano.nombre}</DialogTitle>
         </DialogHeader>
         {historial.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-10 text-muted-foreground">
             <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-40" />
             <p className="text-sm">Sin asignaciones registradas</p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+          <div className="max-h-[65vh] overflow-y-auto pr-1">
             {historial.map(({ semana, parte }, i) => (
-              <div key={i} className="flex items-start gap-3 py-2 border-b last:border-0">
-                <div className="text-xs text-gray-400 whitespace-nowrap pt-0.5 min-w-[80px]">
+              <div key={i} className="flex items-start gap-4 py-3 border-b border-border last:border-0">
+                <div className="text-sm text-muted-foreground whitespace-nowrap pt-0.5 min-w-[92px]">
                   {formatFechaCorta(semana.fecha)}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{PARTES_INFO[parte].label}</p>
-                  {semana.tema && <p className="text-xs text-gray-400 truncate">{semana.tema}</p>}
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-foreground">{PARTES_INFO[parte].label}</p>
+                  {semana.tema && <p className="text-sm text-muted-foreground truncate">{semana.tema}</p>}
                 </div>
               </div>
             ))}

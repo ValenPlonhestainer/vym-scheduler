@@ -12,10 +12,10 @@ import { SelectorFDS } from '@/components/fin-de-semana/selector-fds'
 import { SelectorBoceto } from '@/components/fin-de-semana/selector-boceto'
 import {
   getHermanos, getSemanaFDS, saveSemanaFDS, getAsignacionesFDS, saveAllAsignacionesFDS,
-  getAllAsignacionesFDSConFecha,
+  getAllAsignacionesFDSConFecha, getSemanas, getAsignaciones,
 } from '@/lib/actions'
 import { Hermano, SemanaFDS, ParteTipoFDS, PARTES_INFO_FDS, AsignacionFDS } from '@/lib/types'
-import { formatFecha } from '@/lib/utils'
+import { formatFecha, idsAsignadosReunion, claveSemanaISO } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { bocetoPDFLabel } from '@/data/bocetos'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -33,11 +33,13 @@ export default function DetalleFDSPage() {
   const [asigs, setAsigs] = useState<Asigs>({})
   const [saving, setSaving] = useState(false)
   const [todasAsigsFDS, setTodasAsigsFDS] = useState<Array<AsignacionFDS & { fecha: string }>>([])
+  // IDs asignados en la reunión de ENTRE SEMANA de la misma semana (aviso cruzado).
+  const [idsOtraReunion, setIdsOtraReunion] = useState<string[]>([])
 
 
   useEffect(() => {
-    Promise.all([getSemanaFDS(id), getAsignacionesFDS(id), getHermanos(), getAllAsignacionesFDSConFecha()])
-      .then(([s, asigsSemana, herm, todas]) => {
+    Promise.all([getSemanaFDS(id), getAsignacionesFDS(id), getHermanos(), getAllAsignacionesFDSConFecha(), getSemanas()])
+      .then(async ([s, asigsSemana, herm, todas, semanas]) => {
         if (!s) { router.push('/fin-de-semana'); return }
         const map: Asigs = {}
         for (const a of asigsSemana) map[a.parte] = a.hermanoId
@@ -52,10 +54,24 @@ export default function DetalleFDSPage() {
         setAsigs(map)
         setHermanos(herm)
         setTodasAsigsFDS(todas)
+        // Reunión de entre semana de la misma semana ISO.
+        const sem = semanas.find(x => claveSemanaISO(x.fecha) === claveSemanaISO(s.fecha))
+        if (sem) {
+          const asigsSem = await getAsignaciones(sem.id)
+          setIdsOtraReunion(idsAsignadosReunion(
+            Object.fromEntries(asigsSem.map(a => [a.parte, a.hermanoId])),
+            [sem.microfonista1, sem.microfonista2, sem.acomodador1, sem.acomodador2],
+          ))
+        } else {
+          setIdsOtraReunion([])
+        }
       })
   }, [id])
 
   if (!semana) return null
+
+  // IDs asignados en ESTA reunión (partes + micrófonos + acomodadores).
+  const idsEstaReunion = idsAsignadosReunion(asigs, [semana.microfonista1, semana.microfonista2, semana.acomodador1, semana.acomodador2])
 
   function update<K extends keyof SemanaFDS>(key: K, value: SemanaFDS[K]) {
     setSemana(prev => prev ? { ...prev, [key]: value } : prev)
@@ -192,7 +208,7 @@ export default function DetalleFDSPage() {
                 onChange={v => setAsig(parte, v)}
                 semanaFDSId={semana.id}
                 todasAsignaciones={todasAsigsFDS}
-                asigsSemana={asigs}
+                idsEstaReunion={idsEstaReunion} idsOtraReunion={idsOtraReunion} etiquetaOtraReunion="la reunión de entre semana"
               />
             </div>
           ))}
@@ -271,7 +287,7 @@ export default function DetalleFDSPage() {
               onChange={v => setAsig('fds_lector', v)}
               semanaFDSId={semana.id}
               todasAsignaciones={todasAsigsFDS}
-              asigsSemana={asigs}
+              idsEstaReunion={idsEstaReunion} idsOtraReunion={idsOtraReunion} etiquetaOtraReunion="la reunión de entre semana"
             />
           </div>
         </CardContent>

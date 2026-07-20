@@ -21,12 +21,15 @@ interface Props {
   semanaFDSId: string
   disabled?: boolean
   todasAsignaciones?: Array<AsignacionFDS & { fecha: string }>
-  asigsSemana?: Partial<Record<ParteTipoFDS, string>>
+  idsEstaReunion?: string[]
+  idsOtraReunion?: string[]
+  etiquetaOtraReunion?: string
 }
 
 export function SelectorFDS({
   parte, hermanos, value, onChange, semanaFDSId,
-  disabled, todasAsignaciones = [], asigsSemana = {},
+  disabled, todasAsignaciones = [],
+  idsEstaReunion = [], idsOtraReunion = [], etiquetaOtraReunion,
 }: Props) {
   const [open, setOpen] = useState(false)
 
@@ -42,11 +45,16 @@ export function SelectorFDS({
 
   function isYaAsignado(hermanoId: string): boolean {
     if (hermanoId === value) return false
-    return Object.entries(asigsSemana).some(([p, hId]) => hId === hermanoId && p !== parte)
+    return idsEstaReunion.includes(hermanoId)
+  }
+
+  function otraReunion(hermanoId: string): string | null {
+    if (hermanoId === value || isYaAsignado(hermanoId)) return null
+    return idsOtraReunion.includes(hermanoId) ? (etiquetaOtraReunion ?? null) : null
   }
 
   const selectedYaAsignado =
-    !!value && Object.entries(asigsSemana).some(([p, hId]) => hId === value && p !== parte)
+    !!value && idsEstaReunion.filter(id => id === value).length >= 2
 
   const selectedHermano = hermanos.find(h => h.id === value)
 
@@ -54,6 +62,7 @@ export function SelectorFDS({
     hermano,
     ultima: getUltima(hermano.id),
     yaAsignado: isYaAsignado(hermano.id),
+    yaAsignadoOtra: otraReunion(hermano.id),
   }))
 
   return (

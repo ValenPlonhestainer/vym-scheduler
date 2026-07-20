@@ -19,7 +19,7 @@ import {
   Hermano, Semana, ParteTipo, PARTES_ORDEN, PARTES_INFO, SECCION_LABELS,
   SemanaFDS, ParteTipoFDS, PARTES_INFO_FDS,
 } from '@/lib/types'
-import { generateId } from '@/lib/utils'
+import { generateId, idsAsignadosReunion, claveSemanaISO } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { bocetoPDFLabel } from '@/data/bocetos'
 import { SelectorBoceto } from '@/components/fin-de-semana/selector-boceto'
@@ -404,6 +404,15 @@ export default function ProgramarPage() {
   }
 
 const secciones = agruparPorSeccion()
+
+  // Duplicados: IDs asignados en cada reunión (partes + micrófonos + acomodadores).
+  const idsReunionSemana = idsAsignadosReunion(asigs, [semana.microfonista1, semana.microfonista2, semana.acomodador1, semana.acomodador2])
+  const idsReunionFDS = idsAsignadosReunion(asigsFDS, [semanaFDS.microfonista1, semanaFDS.microfonista2, semanaFDS.acomodador1, semanaFDS.acomodador2])
+  // Aviso cruzado solo si ambas reuniones son de la misma semana.
+  const mismaSemanaProg = !!semana.fecha && !!semanaFDS.fecha && claveSemanaISO(semana.fecha) === claveSemanaISO(semanaFDS.fecha)
+  const idsOtraParaSemana = mismaSemanaProg ? idsReunionFDS : []
+  const idsOtraParaFDS = mismaSemanaProg ? idsReunionSemana : []
+
   // Semana cargada (se usa para el rótulo del botón y el estado). semana.fecha es
   // la fecha de la semana de la guía (entre semana); se prioriza esa.
   const semanaCargada = semana.fecha || semanaFDS.fecha || ''
@@ -673,7 +682,7 @@ const secciones = agruparPorSeccion()
                       <div key={parte} className="space-y-1.5">
                         <div className="flex items-baseline gap-2">
                           <Label className="text-sm font-medium text-foreground">{info.label}</Label>
-                          {info.opcional && <span className="text-xs text-muted-foreground italic">opcional</span>}
+                          {info.opcional && info.seccion !== 'maestros' && <span className="text-xs text-muted-foreground italic">opcional</span>}
                         </div>
                         {hasTitulo && !isAyudante && (
                           <div className="relative">
@@ -703,7 +712,7 @@ const secciones = agruparPorSeccion()
                             semanaId={semana.id!}
                             soloHombres={esDiscurso}
                             todasAsignaciones={todasAsigs}
-                            asigsSemana={asigs}
+                            idsEstaReunion={idsReunionSemana} idsOtraReunion={idsOtraParaSemana} etiquetaOtraReunion="la reunión de fin de semana"
                           />
                           {isEstudiante && !esDiscurso && (
                             <div className="pl-4 border-l-2 border-gray-200 ml-4">
@@ -714,7 +723,7 @@ const secciones = agruparPorSeccion()
                                 onChange={v => setAsig(ayuParte, v)}
                                 semanaId={semana.id!}
                                 todasAsignaciones={todasAsigs}
-                                asigsSemana={asigs}
+                                idsEstaReunion={idsReunionSemana} idsOtraReunion={idsOtraParaSemana} etiquetaOtraReunion="la reunión de fin de semana"
                               />
                             </div>
                           )}
@@ -730,7 +739,7 @@ const secciones = agruparPorSeccion()
                               semanaId={semana.id!}
                               soloHombres={esDiscurso}
                               todasAsignaciones={todasAsigs}
-                              asigsSemana={asigs}
+                              idsEstaReunion={idsReunionSemana} idsOtraReunion={idsOtraParaSemana} etiquetaOtraReunion="la reunión de fin de semana"
                             />
                             {!esDiscurso && (
                               <div className="pl-4 border-l-2 border-amber-100 ml-4">
@@ -741,7 +750,7 @@ const secciones = agruparPorSeccion()
                                   onChange={v => setAsig(auxAyuParte, v)}
                                   semanaId={semana.id!}
                                   todasAsignaciones={todasAsigs}
-                                  asigsSemana={asigs}
+                                  idsEstaReunion={idsReunionSemana} idsOtraReunion={idsOtraParaSemana} etiquetaOtraReunion="la reunión de fin de semana"
                                 />
                               </div>
                             )}
@@ -774,6 +783,9 @@ const secciones = agruparPorSeccion()
                       hermanos={hermanos}
                       value={semana[field] ?? ''}
                       onChange={v => setSemana(p => ({ ...p, [field]: v || undefined }))}
+                      idsEstaReunion={idsReunionSemana}
+                      idsOtraReunion={idsOtraParaSemana}
+                      etiquetaOtraReunion="la reunión de fin de semana"
                     />
                   </div>
                 ))}
@@ -845,7 +857,7 @@ const secciones = agruparPorSeccion()
                     onChange={v => setAsigFDS(parte, v)}
                     semanaFDSId={semanaFDS.id!}
                     todasAsignaciones={todasAsigsFDS}
-                    asigsSemana={asigsFDS}
+                    idsEstaReunion={idsReunionFDS} idsOtraReunion={idsOtraParaFDS} etiquetaOtraReunion="la reunión de entre semana"
                   />
                 </div>
               ))}
@@ -930,7 +942,7 @@ const secciones = agruparPorSeccion()
                   onChange={v => setAsigFDS('fds_lector', v)}
                   semanaFDSId={semanaFDS.id!}
                   todasAsignaciones={todasAsigsFDS}
-                  asigsSemana={asigsFDS}
+                  idsEstaReunion={idsReunionFDS} idsOtraReunion={idsOtraParaFDS} etiquetaOtraReunion="la reunión de entre semana"
                 />
               </div>
             </CardContent>
@@ -977,6 +989,9 @@ const secciones = agruparPorSeccion()
                       hermanos={hermanos}
                       value={semanaFDS[field] ?? ''}
                       onChange={v => setSemanaFDS(p => ({ ...p, [field]: v || undefined }))}
+                      idsEstaReunion={idsReunionFDS}
+                      idsOtraReunion={idsOtraParaFDS}
+                      etiquetaOtraReunion="la reunión de entre semana"
                     />
                   </div>
                 ))}

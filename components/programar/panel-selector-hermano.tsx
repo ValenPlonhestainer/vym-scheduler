@@ -13,6 +13,7 @@ interface HermanoItem {
   hermano: Hermano
   ultima: string | null
   yaAsignado: boolean
+  yaAsignadoOtra?: string | null
 }
 
 interface Props {
@@ -143,8 +144,9 @@ export function PanelSelectorHermano({ open, onClose, titulo, items, selectedId,
                   {ROL_LABELS[rol]}
                 </p>
                 <div className="space-y-1.5">
-                  {lista.map(({ hermano, ultima, yaAsignado }) => {
+                  {lista.map(({ hermano, ultima, yaAsignado, yaAsignadoOtra }) => {
                     const selected = hermano.id === selectedId
+                    const avisaOtra = !selected && !yaAsignado && !!yaAsignadoOtra
                     return (
                       <button
                         key={hermano.id}
@@ -155,11 +157,13 @@ export function PanelSelectorHermano({ open, onClose, titulo, items, selectedId,
                             ? 'border-primary bg-primary/10'
                             : yaAsignado
                             ? 'border-orange-400/50 bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100/50 dark:hover:bg-orange-900/30'
+                            : avisaOtra
+                            ? 'border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/10 hover:bg-amber-100/40 dark:hover:bg-amber-900/20'
                             : 'border-border bg-card hover:bg-muted/50'
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          {yaAsignado && !selected && (
+                          {(yaAsignado || avisaOtra) && !selected && (
                             <AlertCircle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
                           )}
                           <span className={cn(
@@ -182,7 +186,12 @@ export function PanelSelectorHermano({ open, onClose, titulo, items, selectedId,
                         )}
                         {yaAsignado && !selected && (
                           <p className="text-xs text-orange-500 mt-0.5 pl-0.5">
-                            Ya asignado esta semana
+                            Ya asignado en esta reunión
+                          </p>
+                        )}
+                        {avisaOtra && (
+                          <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5 pl-0.5">
+                            Ya asignado en {yaAsignadoOtra}
                           </p>
                         )}
                       </button>

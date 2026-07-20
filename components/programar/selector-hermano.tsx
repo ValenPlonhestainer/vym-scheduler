@@ -17,12 +17,18 @@ interface Props {
   disabled?: boolean
   soloHombres?: boolean
   todasAsignaciones?: Array<Asignacion & { fecha: string }>
-  asigsSemana?: Partial<Record<ParteTipo, string>>
+  // IDs de todos los hermanos ya asignados en ESTA reunión (partes + micrófonos +
+  // acomodadores), como multiset: un mismo id puede aparecer varias veces.
+  idsEstaReunion?: string[]
+  // IDs asignados en la OTRA reunión de la misma semana (para avisar, sin bloquear).
+  idsOtraReunion?: string[]
+  etiquetaOtraReunion?: string
 }
 
 export function SelectorHermano({
   parte, hermanos, value, onChange, semanaId,
-  disabled, soloHombres, todasAsignaciones = [], asigsSemana = {},
+  disabled, soloHombres, todasAsignaciones = [],
+  idsEstaReunion = [], idsOtraReunion = [], etiquetaOtraReunion,
 }: Props) {
   const [open, setOpen] = useState(false)
 
@@ -37,13 +43,20 @@ export function SelectorHermano({
     return fechas.sort().reverse()[0] ?? null
   }
 
+  // Ya asignado en OTRO lugar de esta reunión (otra parte, micrófono o acomodador).
   function isYaAsignado(hermanoId: string): boolean {
     if (hermanoId === value) return false
-    return Object.entries(asigsSemana).some(([p, hId]) => hId === hermanoId && p !== parte)
+    return idsEstaReunion.includes(hermanoId)
   }
 
+  function otraReunion(hermanoId: string): string | null {
+    if (hermanoId === value || isYaAsignado(hermanoId)) return null
+    return idsOtraReunion.includes(hermanoId) ? (etiquetaOtraReunion ?? null) : null
+  }
+
+  // El seleccionado está repetido si aparece 2+ veces (este lugar + otro).
   const selectedYaAsignado =
-    !!value && Object.entries(asigsSemana).some(([p, hId]) => hId === value && p !== parte)
+    !!value && idsEstaReunion.filter(id => id === value).length >= 2
 
   const selectedHermano = hermanos.find(h => h.id === value)
 
@@ -51,6 +64,7 @@ export function SelectorHermano({
     hermano,
     ultima: getUltima(hermano.id),
     yaAsignado: isYaAsignado(hermano.id),
+    yaAsignadoOtra: otraReunion(hermano.id),
   }))
 
   return (

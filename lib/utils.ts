@@ -159,3 +159,29 @@ export function agruparSemanasPorMes<T extends { id: string; fecha: string }>(se
   }
   return grupos
 }
+
+// Clave de la semana ISO (lunes) de una fecha ("YYYY/MM/DD" o "YYYY-MM-DD") como
+// "YYYY-MM-DD". Sirve para emparejar la reunión de entre semana con la de fin de
+// semana de la MISMA semana (una cae un día de semana, la otra sábado/domingo).
+export function claveSemanaISO(fecha: string): string {
+  const [y, m, d] = fecha.replace(/\//g, '-').split('-').map(Number)
+  if (!y || !m || !d) return fecha
+  const dt = new Date(y, m - 1, d)
+  const dow = dt.getDay() // 0=domingo … 6=sábado
+  const toMonday = dow === 0 ? 6 : dow - 1
+  dt.setDate(dt.getDate() - toMonday)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+// IDs de todos los hermanos asignados en una reunión (partes + micrófonos +
+// acomodadores), como multiset (un id puede repetirse). Sirve para avisar
+// duplicados en los selectores.
+export function idsAsignadosReunion(
+  asigs: Record<string, string | undefined>,
+  extras: Array<string | undefined>,
+): string[] {
+  const ids: string[] = []
+  for (const id of Object.values(asigs)) if (id) ids.push(id)
+  for (const id of extras) if (id) ids.push(id)
+  return ids
+}

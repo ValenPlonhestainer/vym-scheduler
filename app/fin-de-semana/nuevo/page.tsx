@@ -11,7 +11,7 @@ import { SelectorFDS } from '@/components/fin-de-semana/selector-fds'
 import { getHermanos, saveSemanaFDS, saveAllAsignacionesFDS, getAllAsignacionesFDSConFecha } from '@/lib/actions'
 import { AsignacionFDS } from '@/lib/types'
 import { Hermano, SemanaFDS, ParteTipoFDS } from '@/lib/types'
-import { generateId } from '@/lib/utils'
+import { generateId, idsAsignadosReunion } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { BOCETOS } from '@/data/bocetos'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -45,6 +45,8 @@ export default function NuevoFinDeSemanaPage() {
   })
 
   const [asigs, setAsigs] = useState<Asigs>({})
+  // IDs asignados en esta reunión (partes) para avisar duplicados.
+  const idsEstaReunion = idsAsignadosReunion(asigs, [])
 
   useEffect(() => {
     getHermanos().then(setHermanos)
@@ -188,7 +190,7 @@ export default function NuevoFinDeSemanaPage() {
               onChange={v => setAsig('fds_presidente', v)}
               semanaFDSId={semanaId}
               todasAsignaciones={todasAsigsFDS}
-              asigsSemana={asigs}
+              idsEstaReunion={idsEstaReunion}
             />
           </div>
           <div className="space-y-1.5">
@@ -200,7 +202,7 @@ export default function NuevoFinDeSemanaPage() {
               onChange={v => setAsig('fds_oracion_apertura', v)}
               semanaFDSId={semanaId}
               todasAsignaciones={todasAsigsFDS}
-              asigsSemana={asigs}
+              idsEstaReunion={idsEstaReunion}
             />
           </div>
         </CardContent>
@@ -303,7 +305,7 @@ export default function NuevoFinDeSemanaPage() {
               onChange={v => setAsig('fds_lector', v)}
               semanaFDSId={semanaId}
               todasAsignaciones={todasAsigsFDS}
-              asigsSemana={asigs}
+              idsEstaReunion={idsEstaReunion}
             />
           </div>
         </CardContent>

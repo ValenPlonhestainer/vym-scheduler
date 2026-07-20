@@ -8,12 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SelectorHermano } from '@/components/programar/selector-hermano'
-import { getSemana, getAsignaciones, getHermanos, saveSemana, saveAllAsignaciones, getAllAsignacionesConFecha } from '@/lib/actions'
+import { getSemana, getAsignaciones, getHermanos, saveSemana, saveAllAsignaciones, getAllAsignacionesConFecha, getSemanasFDS, getAsignacionesFDS } from '@/lib/actions'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Semana, ParteTipo, PARTES_ORDEN, PARTES_INFO, SECCION_LABELS, Hermano, Asignacion,
 } from '@/lib/types'
-import { formatFecha } from '@/lib/utils'
+import { formatFecha, idsAsignadosReunion, claveSemanaISO } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { BotonRecordatorios } from '@/components/recordatorios/boton-recordatorios'
 
@@ -42,10 +42,12 @@ export default function SemanaDetailPage() {
   const [reloading, setReloading] = useState(false)
   const [usarSalaAux, setUsarSalaAux] = useState(false)
   const [todasAsigs, setTodasAsigs] = useState<Array<Asignacion & { fecha: string }>>([])
+  // IDs asignados en la reunión de FIN DE SEMANA de la misma semana (aviso cruzado).
+  const [idsOtraReunion, setIdsOtraReunion] = useState<string[]>([])
 
   useEffect(() => {
-    Promise.all([getSemana(id), getAsignaciones(id), getHermanos(), getAllAsignacionesConFecha()])
-      .then(([s, asigData, herm, todas]) => {
+    Promise.all([getSemana(id), getAsignaciones(id), getHermanos(), getAllAsignacionesConFecha(), getSemanasFDS()])
+      .then(async ([s, asigData, herm, todas, semanasFds]) => {
         if (!s) { router.push('/historial'); return }
         setSemana(s)
         setHermanos(herm)
@@ -55,6 +57,17 @@ export default function SemanaDetailPage() {
         const tieneAux = asigData.some(a => a.parte.startsWith('aux_'))
         if (tieneAux) setUsarSalaAux(true)
         setTodasAsigs(todas)
+        // Reunión de fin de semana de la misma semana ISO.
+        const fds = semanasFds.find(f => claveSemanaISO(f.fecha) === claveSemanaISO(s.fecha))
+        if (fds) {
+          const asigsFds = await getAsignacionesFDS(fds.id)
+          setIdsOtraReunion(idsAsignadosReunion(
+            Object.fromEntries(asigsFds.map(a => [a.parte, a.hermanoId])),
+            [fds.microfonista1, fds.microfonista2, fds.acomodador1, fds.acomodador2],
+          ))
+        } else {
+          setIdsOtraReunion([])
+        }
       })
   }, [id, router])
 
@@ -120,6 +133,9 @@ export default function SemanaDetailPage() {
   if (!semana) return <div className="p-8 text-center text-gray-400">Cargando...</div>
 
   const secciones = agruparPorSeccion()
+
+  // IDs asignados en ESTA reunión (partes + micrófonos + acomodadores).
+  const idsEstaReunion = idsAsignadosReunion(asigs, [semana.microfonista1, semana.microfonista2, semana.acomodador1, semana.acomodador2])
 
   const numEstudiantes = semana.numEstudiantes
     ?? (semana.titulos?.estudiante_4 ? 4
@@ -255,7 +271,7 @@ export default function SemanaDetailPage() {
                   <div key={parte} className="space-y-1.5">
                     <div className="flex items-baseline gap-2">
                       <Label className="text-sm font-medium text-foreground">{info.label}</Label>
-                      {info.opcional && <span className="text-xs text-muted-foreground italic">opcional</span>}
+                      {info.opcional && info.seccion !== 'maestros' && <span className="text-xs text-muted-foreground italic">opcional</span>}
                     </div>
                     {needsTitulo && !isAyudante && (
                       <Input
@@ -278,7 +294,7 @@ export default function SemanaDetailPage() {
                         semanaId={semana.id}
                         soloHombres={esDiscurso}
                         todasAsignaciones={todasAsigs}
-                        asigsSemana={asigs}
+                        idsEstaReunion={idsEstaReunion} idsOtraReunion={idsOtraReunion} etiquetaOtraReunion="la reunión de fin de semana"
                       />
                       {isEstudiante && !esDiscurso && (
                         <div className="pl-4 border-l-2 border-gray-200 ml-4">
@@ -289,7 +305,7 @@ export default function SemanaDetailPage() {
                             onChange={v => setAsig(ayuParte, v)}
                             semanaId={semana.id}
                             todasAsignaciones={todasAsigs}
-                            asigsSemana={asigs}
+                            idsEstaReunion={idsEstaReunion} idsOtraReunion={idsOtraReunion} etiquetaOtraReunion="la reunión de fin de semana"
                           />
                         </div>
                       )}
@@ -306,7 +322,7 @@ export default function SemanaDetailPage() {
                           semanaId={semana.id}
                           soloHombres={esDiscurso}
                           todasAsignaciones={todasAsigs}
-                          asigsSemana={asigs}
+                          idsEstaReunion={idsEstaReunion} idsOtraReunion={idsOtraReunion} etiquetaOtraReunion="la reunión de fin de semana"
                         />
                         {!esDiscurso && (
                           <div className="pl-4 border-l-2 border-amber-100 ml-4">
@@ -317,7 +333,7 @@ export default function SemanaDetailPage() {
                               onChange={v => setAsig(auxAyuParte, v)}
                               semanaId={semana.id}
                               todasAsignaciones={todasAsigs}
-                              asigsSemana={asigs}
+                              idsEstaReunion={idsEstaReunion} idsOtraReunion={idsOtraReunion} etiquetaOtraReunion="la reunión de fin de semana"
                             />
                           </div>
                         )}

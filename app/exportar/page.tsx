@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileDown, Printer, Eye, Pencil, Trash2 } from 'lucide-react'
+import { FileDown, Printer, Eye, Pencil, Trash2, ImageDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -19,7 +19,7 @@ import {
   Hermano, Asignacion, SemanaFDS, AsignacionFDS, ParteTipoFDS,
 } from '@/lib/types'
 import { formatFechaCorta, getMesAnio, agruparSemanasPorMes } from '@/lib/utils'
-import { generarPDFMensual } from '@/lib/pdf'
+import { generarPDFMensual, descargarImagenMensual } from '@/lib/pdf'
 
 const SECCIONES_ORDEN = ['apertura', 'tesoros', 'maestros', 'cristiana', 'cierre']
 
@@ -134,6 +134,20 @@ export default function ExportarPage() {
     generarPDFMensual(semanasMes, hermanos, asignaciones, congregacion, mesLabel, semanasFDS, asignacionesFDS, semanas)
   }
 
+  const [generandoImg, setGenerandoImg] = useState(false)
+  async function handleImagen() {
+    setGenerandoImg(true)
+    try {
+      const mesLabel = getMesLabel(mesSeleccionado)
+      await descargarImagenMensual(semanasMes, hermanos, asignaciones, congregacion, mesLabel, semanasFDS, asignacionesFDS, semanas)
+    } catch (e) {
+      console.error('Error al generar la imagen', e)
+      alert('No se pudo generar la imagen. Probá con el PDF.')
+    } finally {
+      setGenerandoImg(false)
+    }
+  }
+
   function handlePrint() {
     window.print()
   }
@@ -174,6 +188,10 @@ export default function ExportarPage() {
           <Button onClick={handlePDF} disabled={semanasMes.length === 0} size="sm">
             <FileDown className="h-4 w-4" />
             <span className="hidden sm:inline">Descargar</span> PDF
+          </Button>
+          <Button onClick={handleImagen} disabled={semanasMes.length === 0 || generandoImg} size="sm" variant="outline">
+            {generandoImg ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageDown className="h-4 w-4" />}
+            <span className="hidden sm:inline">Descargar</span> imagen
           </Button>
         </div>
       </div>

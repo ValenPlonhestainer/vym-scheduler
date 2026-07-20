@@ -66,8 +66,11 @@ export function generarPDFMensual(
   todasAsignacionesFDS: AsignacionFDS[] = [],
   // Todas las semanas entre semana (cualquier mes), para detectar FDS huérfanas
   // considerando semanas que cruzan de mes. Por defecto, las del mes.
-  todasLasSemanas: Semana[] = semanas
-) {
+  todasLasSemanas: Semana[] = semanas,
+  // Si es true, descarga el PDF. Si es false, solo construye y devuelve el doc
+  // (se usa para convertirlo a imagen).
+  guardar = true,
+): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
   const pageW = 210
@@ -578,5 +581,77 @@ export function generarPDFMensual(
     y += 8
   }
 
-  doc.save(`programa-${mesAnio.replace(/\s/g, '-').toLowerCase()}.pdf`)
+  if (guardar) doc.save(`programa-${mesAnio.replace(/\s/g, '-').toLowerCase()}.pdf`)
+  return doc
+}
+
+// Descarga el MISMO PDF pero como imagen PNG (rasterizando cada página con pdf.js
+// y apilándolas en una sola imagen). Queda idéntico al PDF en formato y colores.
+export async function descargarImagenMensual(
+  semanas: Semana[],
+  hermanos: Hermano[],
+  todasAsignaciones: Asignacion[],
+  congregacion: string,
+  mesAnio: string,
+  semanasFDS: SemanaFDS[] = [],
+  todasAsignacionesFDS: AsignacionFDS[] = [],
+  todasLasSemanas: Semana[] = semanas,
+): Promise<void> {
+  // 1) Construimos el PDF (sin descargarlo) y sacamos sus bytes.
+  const doc = generarPDFMensual(
+    semanas, hermanos, todasAsignaciones, congregacion, mesAnio,
+    semanasFDS, todasAsignacionesFDS, todasLasSemanas, false,
+  )
+  const data = doc.output('arraybuffer')
+
+  // 2) pdf.js rasteriza cada página a un canvas.
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf')
+  ;(pdfjsLib as { GlobalWorkerOptions: { workerSrc: string } }).GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
+  const pdf = await pdfjsLib.getDocument({ data }).promise
+
+  const escala = 2 // más nitidez
+  const canvases: HTMLCanvasElement[] = []
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const viewport = page.getViewport({ scale: escala })
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(viewport.width)
+    canvas.height = Math.ceil(viewport.height)
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    await page.render({ canvasContext: ctx, viewport }).promise
+    canvases.push(canvas)
+  }
+
+  // 3) Apilamos las páginas en una sola imagen vertical.
+  const gap = Math.round(16 * escala)
+  const width = Math.max(...canvases.map(c => c.width))
+  const height = canvases.reduce((h, c) => h + c.height, 0) + gap * Math.max(0, canvases.length - 1)
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  const octx = out.getContext('2d')!
+  octx.fillStyle = '#ffffff'
+  octx.fillRect(0, 0, width, height)
+  let yy = 0
+  for (const c of canvases) {
+    octx.drawImage(c, 0, yy)
+    yy += c.height + gap
+  }
+
+  // 4) Descargamos el PNG.
+  await new Promise<void>(resolve => {
+    out.toBlob(blob => {
+      if (blob) {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `programa-${mesAnio.replace(/\s/g, '-').toLowerCase()}.png`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+      resolve()
+    }, 'image/png')
+  })
 }

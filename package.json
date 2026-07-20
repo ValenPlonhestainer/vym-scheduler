@@ -39,6 +39,7 @@
     "lucide-react": "^0.469.0",
     "meeting-schedules-parser": "^4.5.0",
     "next": "13.5.7",
+    "pdfjs-dist": "^3.11.174",
     "react": "^18",
     "react-dom": "^18",
     "tailwind-merge": "^2.6.0",

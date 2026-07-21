@@ -610,7 +610,26 @@ export async function descargarImagenMensual(
   const pdf = await pdfjsLib.getDocument({ data }).promise
 
   const escala = 2 // más nitidez
-  const canvases: HTMLCanvasElement[] = []
+  const slugMes = mesAnio.replace(/\s/g, '-').toLowerCase()
+
+  function descargarCanvas(canvas: HTMLCanvasElement, nombre: string): Promise<void> {
+    return new Promise(resolve => {
+      canvas.toBlob(blob => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = nombre
+          a.click()
+          // Revocar más tarde: si se revoca al toque, algunos navegadores cancelan la descarga.
+          setTimeout(() => URL.revokeObjectURL(url), 1500)
+        }
+        resolve()
+      }, 'image/png')
+    })
+  }
+
+  // 3) Una imagen (PNG) por cada semana (página del PDF), nombrada con su fecha.
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i)
     const viewport = page.getViewport({ scale: escala })
@@ -621,37 +640,13 @@ export async function descargarImagenMensual(
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     await page.render({ canvasContext: ctx, viewport }).promise
-    canvases.push(canvas)
-  }
 
-  // 3) Apilamos las páginas en una sola imagen vertical.
-  const gap = Math.round(16 * escala)
-  const width = Math.max(...canvases.map(c => c.width))
-  const height = canvases.reduce((h, c) => h + c.height, 0) + gap * Math.max(0, canvases.length - 1)
-  const out = document.createElement('canvas')
-  out.width = width
-  out.height = height
-  const octx = out.getContext('2d')!
-  octx.fillStyle = '#ffffff'
-  octx.fillRect(0, 0, width, height)
-  let yy = 0
-  for (const c of canvases) {
-    octx.drawImage(c, 0, yy)
-    yy += c.height + gap
+    const fecha = semanas[i - 1]?.fecha
+    const nombre = fecha
+      ? `programa-semana-${fecha.replace(/\//g, '-')}.png`
+      : `programa-${slugMes}-semana-${i}.png`
+    await descargarCanvas(canvas, nombre)
+    // Pausa breve entre descargas para que el navegador no descarte algunas.
+    await new Promise(r => setTimeout(r, 250))
   }
-
-  // 4) Descargamos el PNG.
-  await new Promise<void>(resolve => {
-    out.toBlob(blob => {
-      if (blob) {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `programa-${mesAnio.replace(/\s/g, '-').toLowerCase()}.png`
-        a.click()
-        URL.revokeObjectURL(url)
-      }
-      resolve()
-    }, 'image/png')
-  })
 }

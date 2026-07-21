@@ -148,155 +148,80 @@ export default function HistorialPage() {
             </h2>
 
             <div className="space-y-4">
-              {entradasDelMes.map(entrada => (
-                <div key={entrada.lunes}>
-                  {/* Etiqueta de semana — visible en desktop como sidebar, en mobile como header */}
-                  <div className="hidden sm:flex gap-4 items-start">
-                    <div className="w-28 shrink-0 pt-2 text-right">
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide leading-tight">Semana del</p>
-                      <p className="text-xs text-muted-foreground leading-snug mt-0.5">{getWeekRange(entrada.lunes)}</p>
-                    </div>
-                    <div className="flex flex-col items-center self-stretch">
-                      <div className="w-px flex-1 bg-border mt-2" />
-                    </div>
-                    <div className="flex-1 space-y-2 pb-2">
-                      {entrada.semana && (() => {
-                        const s = entrada.semana
-                        const asigs = asignaciones.filter(a => a.semanaId === s.id)
-                        const completitud = Math.round((asigs.length / 12) * 100)
-                        return (
-                          <Link href={`/historial/${s.id}`}>
-                            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-[3px] border-l-blue-500">
-                              <CardContent className="py-2.5 px-3 flex items-center gap-3">
+              {entradasDelMes.map(entrada => {
+                const s = entrada.semana
+                const f = entrada.semanaFDS
+                const asigsCount = s ? asignaciones.filter(a => a.semanaId === s.id).length : 0
+                return (
+                  <Link key={entrada.lunes} href={`/programar?editar=${entrada.lunes}`}>
+                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between gap-2 mb-2.5">
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none">Semana del</p>
+                            <p className="text-sm font-medium text-foreground mt-0.5">{getWeekRange(entrada.lunes)}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {/* Entre semana */}
+                          <div className="rounded-md border-l-[3px] border-l-blue-500 bg-muted/30 px-3 py-2 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
                                 <Calendar className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-baseline gap-2 flex-wrap">
-                                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Entre semana</span>
-                                    <span className="text-sm font-medium text-foreground">{formatFechaCorta(s.fecha)}</span>
-                                    {s.tema && <span className="text-xs text-muted-foreground truncate">{s.tema}</span>}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <div className="h-1 w-20 bg-muted rounded-full overflow-hidden">
-                                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(completitud, 100)}%` }} />
-                                    </div>
-                                    <span className="text-[10px] text-muted-foreground">{asigs.length} asignaciones</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
+                                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Entre semana</span>
+                              </div>
+                              {s && (
+                                <div className="flex items-center gap-0.5 shrink-0">
                                   <ToggleAutoRecordatorio id={s.id} tipo="semana" inicial={s.recordatorioAuto ?? true} />
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-400" onClick={e => handleDeleteSemana(e, s)}>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-400" onClick={e => handleDeleteSemana(e, s)}>
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
-                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                                 </div>
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        )
-                      })()}
-                      {entrada.semanaFDS && (() => {
-                        const f = entrada.semanaFDS
-                        return (
-                          <Link href={`/fin-de-semana/${f.id}`}>
-                            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-[3px] border-l-purple-500">
-                              <CardContent className="py-2.5 px-3 flex items-center gap-3">
+                              )}
+                            </div>
+                            {s ? (
+                              <div className="mt-1">
+                                <p className="text-sm text-foreground">{formatFechaCorta(s.fecha)}</p>
+                                {s.tema && <p className="text-xs text-muted-foreground truncate">{s.tema}</p>}
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{asigsCount} asignaciones</p>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground/50 italic mt-1">Sin reunión cargada</p>
+                            )}
+                          </div>
+                          {/* Fin de semana */}
+                          <div className="rounded-md border-l-[3px] border-l-purple-500 bg-muted/30 px-3 py-2 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
                                 <Sun className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-baseline gap-2 flex-wrap">
-                                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide">Fin de semana</span>
-                                    <span className="text-sm font-medium text-foreground">{formatFechaCorta(f.fecha)}</span>
-                                    {f.tituloArticulo && <span className="text-xs text-muted-foreground truncate">{f.tituloArticulo}</span>}
-                                  </div>
-                                  {f.oradorNombre && (
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                                      Orador: {f.oradorNombre}{f.oradorCongregacion ? ` · ${f.oradorCongregacion}` : ''}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
+                                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide">Fin de semana</span>
+                              </div>
+                              {f && (
+                                <div className="flex items-center gap-0.5 shrink-0">
                                   <ToggleAutoRecordatorio id={f.id} tipo="fds" inicial={f.recordatorioAuto ?? true} />
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-400" onClick={e => handleDeleteFDS(e, f)}>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-400" onClick={e => handleDeleteFDS(e, f)}>
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
-                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                                 </div>
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        )
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Mobile: layout simple sin sidebar */}
-                  <div className="sm:hidden space-y-2">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                      {getWeekRange(entrada.lunes)}
-                    </p>
-                    {entrada.semana && (() => {
-                      const s = entrada.semana
-                      const asigs = asignaciones.filter(a => a.semanaId === s.id)
-                      const completitud = Math.round((asigs.length / 12) * 100)
-                      return (
-                        <Link href={`/historial/${s.id}`}>
-                          <Card className="cursor-pointer border-l-[3px] border-l-blue-500">
-                            <CardContent className="py-2.5 px-3 flex items-center gap-2">
-                              <Calendar className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wide">Entre semana</span>
-                                  <span className="text-sm font-medium text-foreground">{formatFechaCorta(s.fecha)}</span>
-                                </div>
-                                {s.tema && <p className="text-xs text-muted-foreground truncate mt-0.5">{s.tema}</p>}
-                                <div className="flex items-center gap-2 mt-1">
-                                  <div className="h-1 w-16 bg-muted rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(completitud, 100)}%` }} />
-                                  </div>
-                                  <span className="text-[10px] text-muted-foreground">{asigs.length} asig.</span>
-                                </div>
+                              )}
+                            </div>
+                            {f ? (
+                              <div className="mt-1">
+                                <p className="text-sm text-foreground">{formatFechaCorta(f.fecha)}</p>
+                                {f.tituloArticulo && <p className="text-xs text-muted-foreground truncate">{f.tituloArticulo}</p>}
+                                {f.oradorNombre && <p className="text-[10px] text-muted-foreground truncate">Orador: {f.oradorNombre}</p>}
                               </div>
-                              <div className="flex items-center gap-0.5 shrink-0">
-                                <ToggleAutoRecordatorio id={s.id} tipo="semana" inicial={s.recordatorioAuto ?? true} />
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={e => handleDeleteSemana(e, s)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      )
-                    })()}
-                    {entrada.semanaFDS && (() => {
-                      const f = entrada.semanaFDS
-                      return (
-                        <Link href={`/fin-de-semana/${f.id}`}>
-                          <Card className="cursor-pointer border-l-[3px] border-l-purple-500">
-                            <CardContent className="py-2.5 px-3 flex items-center gap-2">
-                              <Sun className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide">Fin de semana</span>
-                                  <span className="text-sm font-medium text-foreground">{formatFechaCorta(f.fecha)}</span>
-                                </div>
-                                {f.tituloArticulo && <p className="text-xs text-muted-foreground truncate mt-0.5">{f.tituloArticulo}</p>}
-                                {f.oradorNombre && <p className="text-[10px] text-muted-foreground">Orador: {f.oradorNombre}</p>}
-                              </div>
-                              <div className="flex items-center gap-0.5 shrink-0">
-                                <ToggleAutoRecordatorio id={f.id} tipo="fds" inicial={f.recordatorioAuto ?? true} />
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={e => handleDeleteFDS(e, f)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      )
-                    })()}
-                  </div>
-                </div>
-              ))}
+                            ) : (
+                              <p className="text-xs text-muted-foreground/50 italic mt-1">Sin reunión cargada</p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         )

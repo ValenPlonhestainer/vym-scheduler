@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, CheckCircle2, AlertCircle, Calendar, Sun, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Loader2, CheckCircle2, AlertCircle, Calendar, Sun, X, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,6 +13,7 @@ import { SelectorFDS } from '@/components/fin-de-semana/selector-fds'
 import {
   getHermanos, saveSemana, saveAllAsignaciones, saveSemanaFDS, saveAllAsignacionesFDS,
   getAllAsignacionesConFecha, getAllAsignacionesFDSConFecha, getSemanas, getSemanasFDS,
+  getAsignaciones, getAsignacionesFDS,
 } from '@/lib/actions'
 import { Asignacion, AsignacionFDS } from '@/lib/types'
 import {
@@ -88,8 +89,16 @@ function sabadoDeSemana(fecha: string): string {
   return `${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, '0')}-${String(sat.getDate()).padStart(2, '0')}`
 }
 
+// Si la URL trae ?editar=YYYY-MM-DD (lunes de la semana), estamos EDITANDO una
+// semana existente del historial (no creando una nueva). Devuelve esa fecha o null.
+function getEditarParam(): string | null {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('editar')
+}
+
 export default function ProgramarPage() {
   const router = useRouter()
+  const [modoEdicion, setModoEdicion] = useState(false)
   const { toast } = useToast()
   const [hermanos, setHermanos] = useState<Hermano[]>([])
   const [saving, setSaving] = useState(false)
@@ -124,13 +133,13 @@ export default function ProgramarPage() {
   const [panelOpen, setPanelOpen] = useState(false)
 
   const [semana, setSemana] = useState<Partial<Semana>>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !getEditarParam()) {
       try { const r = localStorage.getItem('vym_prog_semana'); if (r) return JSON.parse(r) } catch {}
     }
     return nuevaSemanaVacia()
   })
   const [asigs, setAsigs] = useState<Asigs>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !getEditarParam()) {
       try { const r = localStorage.getItem('vym_prog_asigs'); if (r) return JSON.parse(r) } catch {}
     }
     return {}
@@ -142,13 +151,13 @@ export default function ProgramarPage() {
   const abortFDSRef = useRef<AbortController | null>(null)
 
   const [semanaFDS, setSemanaFDS] = useState<Partial<SemanaFDS>>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !getEditarParam()) {
       try { const r = localStorage.getItem('vym_prog_fds'); if (r) return JSON.parse(r) } catch {}
     }
     return nuevaFDSVacia()
   })
   const [asigsFDS, setAsigsFDS] = useState<AsigsFDS>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !getEditarParam()) {
       try { const r = localStorage.getItem('vym_prog_asigsfds'); if (r) return JSON.parse(r) } catch {}
     }
     return {}
@@ -166,8 +175,37 @@ export default function ProgramarPage() {
     recargarListas()
   }, [])
 
+  // Modo EDICIÓN: si viene ?editar=<lunes>, cargamos esa semana (entre semana +
+  // fin de semana) desde la base, para editarla como en Programar.
+  useEffect(() => {
+    const editar = getEditarParam()
+    if (!editar) return
+    setModoEdicion(true)
+    ;(async () => {
+      const [sems, fdss] = await Promise.all([getSemanas(), getSemanasFDS()])
+      const sem = sems.find(s => claveSemanaISO(s.fecha) === editar)
+      if (sem) {
+        setSemana(sem)
+        const a = await getAsignaciones(sem.id)
+        const map: Asigs = {}
+        for (const x of a) map[x.parte] = x.hermanoId
+        setAsigs(map)
+        if (a.some(x => x.parte.startsWith('aux_'))) setUsarSalaAux(true)
+      }
+      const fds = fdss.find(f => claveSemanaISO(f.fecha) === editar)
+      if (fds) {
+        const af = await getAsignacionesFDS(fds.id)
+        const mapF: AsigsFDS = {}
+        for (const x of af) mapF[x.parte] = x.hermanoId
+        setSemanaFDS(fds)
+        setAsigsFDS(mapF)
+      }
+    })()
+  }, [])
+
   // Epub entre semana
   useEffect(() => {
+    if (getEditarParam()) return // en edición no recargamos jw.org (no pisar lo guardado)
     const fecha = semana.fecha
     if (!fecha || fecha.length < 10) return
     abortRef.current?.abort()
@@ -240,6 +278,7 @@ export default function ProgramarPage() {
 
   // Epub fin de semana
   useEffect(() => {
+    if (getEditarParam()) return // en edición no recargamos jw.org
     const fecha = semanaFDS.fecha
     if (!fecha || fecha.length < 10) return
     abortFDSRef.current?.abort()
@@ -272,10 +311,11 @@ export default function ProgramarPage() {
     return () => ctrl.abort()
   }, [semanaFDS.fecha])
 
-  useEffect(() => { try { localStorage.setItem('vym_prog_semana', JSON.stringify(semana)) } catch {} }, [semana])
-  useEffect(() => { try { localStorage.setItem('vym_prog_asigs', JSON.stringify(asigs)) } catch {} }, [asigs])
-  useEffect(() => { try { localStorage.setItem('vym_prog_fds', JSON.stringify(semanaFDS)) } catch {} }, [semanaFDS])
-  useEffect(() => { try { localStorage.setItem('vym_prog_asigsfds', JSON.stringify(asigsFDS)) } catch {} }, [asigsFDS])
+  // En modo edición NO tocamos el borrador de "nueva reunión" del localStorage.
+  useEffect(() => { if (getEditarParam()) return; try { localStorage.setItem('vym_prog_semana', JSON.stringify(semana)) } catch {} }, [semana])
+  useEffect(() => { if (getEditarParam()) return; try { localStorage.setItem('vym_prog_asigs', JSON.stringify(asigs)) } catch {} }, [asigs])
+  useEffect(() => { if (getEditarParam()) return; try { localStorage.setItem('vym_prog_fds', JSON.stringify(semanaFDS)) } catch {} }, [semanaFDS])
+  useEffect(() => { if (getEditarParam()) return; try { localStorage.setItem('vym_prog_asigsfds', JSON.stringify(asigsFDS)) } catch {} }, [asigsFDS])
   useEffect(() => { try { localStorage.setItem('vym_prog_tipo', tipo) } catch {} }, [tipo])
   useEffect(() => { try { localStorage.setItem('vym_prog_salaaux', String(usarSalaAux)) } catch {} }, [usarSalaAux])
 
@@ -347,6 +387,11 @@ export default function ProgramarPage() {
         if (rf2.error) { toast({ title: 'Error al guardar (fin de semana)', description: rf2.error, variant: 'destructive' }); setSaving(false); return }
       }
       toast({ title: 'Semana guardada', description: 'Se guardaron las reuniones de la semana.' })
+      if (getEditarParam()) {
+        // Editando desde el historial: volvemos al historial.
+        router.push('/historial')
+        return
+      }
       setSemana(nuevaSemanaVacia()); setAsigs({})
       setSemanaFDS(nuevaFDSVacia()); setAsigsFDS({})
       setEpubStatus('idle'); setEpubError(''); setEpubFDSStatus('idle'); setEpubFDSError('')
@@ -417,7 +462,12 @@ const secciones = agruparPorSeccion()
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Encabezado */}
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-foreground flex-1">Nueva reunión</h1>
+        {modoEdicion && (
+          <Button variant="ghost" size="icon" onClick={() => router.push('/historial')} title="Volver al historial">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
+        <h1 className="text-2xl font-bold text-foreground flex-1">{modoEdicion ? 'Editar semana' : 'Nueva reunión'}</h1>
         <div className="flex items-center gap-2">
           <Button
             onClick={handleGuardarTodo}
@@ -425,12 +475,21 @@ const secciones = agruparPorSeccion()
             size="sm"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Guardar la semana
+            {modoEdicion ? 'Guardar cambios' : 'Guardar la semana'}
           </Button>
         </div>
       </div>
 
-      {/* Botón único: abre el panel de la guía (elige mes + semana, carga ambas reuniones) */}
+      {/* Modo edición: la semana está fija (no se elige de la guía). */}
+      {modoEdicion ? (
+        <div className="mb-6">
+          <span className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-foreground">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            {semanaCargada ? <span className="capitalize">Semana del {labelSemanaEpub(semanaCargada)}</span> : 'Semana'}
+          </span>
+        </div>
+      ) : (
+      /* Botón único: abre el panel de la guía (elige mes + semana, carga ambas reuniones) */
       <div className="mb-6 space-y-1">
         <Button variant="outline" className="w-full sm:w-auto" onClick={() => setPanelOpen(true)}>
           <Calendar className="h-4 w-4" />
@@ -448,6 +507,7 @@ const secciones = agruparPorSeccion()
           </p>
         )}
       </div>
+      )}
 
       {/* Panel lateral derecho */}
       {panelOpen && (

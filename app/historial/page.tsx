@@ -11,6 +11,7 @@ import { Semana, SemanaFDS, Asignacion } from '@/lib/types'
 import { formatFechaCorta } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { ToggleAutoRecordatorioSemana } from '@/components/recordatorios/toggle-auto-recordatorio-semana'
+import { BotonRecordatorios } from '@/components/recordatorios/boton-recordatorios'
 
 type EntradaSemana = {
   lunes: string
@@ -157,9 +158,15 @@ export default function HistorialPage() {
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between gap-2 mb-2.5">
-                          <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none">Semana del</p>
-                            <p className="text-sm font-medium text-foreground mt-0.5">{getWeekRange(entrada.lunes)}</p>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {/* Envío MANUAL de recordatorios (además del automático). */}
+                            <span onClick={e => { e.preventDefault(); e.stopPropagation() }}>
+                              <BotonRecordatorios fechaReferencia={entrada.lunes} />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none">Semana del</p>
+                              <p className="text-sm font-medium text-foreground mt-0.5 truncate">{getWeekRange(entrada.lunes)}</p>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <ToggleAutoRecordatorioSemana

@@ -36,10 +36,14 @@ CREATE TABLE IF NOT EXISTS hermanos (
   notas            text,
   telefono         text,
   privilegios      jsonb,
+  -- true si al hermano ya se le mandó el mensaje de presentación del bot
+  -- (para que solo la PRIMERA vez reciba la presentación + el recordatorio).
+  recordatorio_presentado boolean NOT NULL DEFAULT false,
   created_at       timestamptz NOT NULL DEFAULT now()
 );
 -- Migración para bases existentes: agrega la columna si todavía no está.
 ALTER TABLE hermanos ADD COLUMN IF NOT EXISTS telefono text;
+ALTER TABLE hermanos ADD COLUMN IF NOT EXISTS recordatorio_presentado boolean NOT NULL DEFAULT false;
 
 -- ── Semanas entre semana ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS semanas (

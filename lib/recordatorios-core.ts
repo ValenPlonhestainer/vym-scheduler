@@ -150,6 +150,13 @@ function nombreSaludo(nombreCompleto: string): string {
   return tokens[0] || nombreCompleto
 }
 
+// Mensaje de presentación del bot: se manda SOLO la primera vez que se le escribe
+// a un hermano, antes del recordatorio.
+function textoPresentacion(nombre: string): string {
+  return `Hola ${nombreSaludo(nombre)} 🙂 Soy un robot de WhatsApp y mi tarea es recordarte cada vez ` +
+    `que tengas una asignación en la reunión. No hace falta que respondas mis mensajes. ¡Gracias!`
+}
+
 // Arma UN mensaje por hermano, juntando (si hay) sus partes de las dos reuniones.
 // Siempre en formato con viñetas, para que la parte se distinga del resto del texto.
 function construirTexto(nombre: string, bloques: Bloque[], contacto: string | null): string {
@@ -171,7 +178,7 @@ function construirTexto(nombre: string, bloques: Bloque[], contacto: string | nu
   return `${saludo} ${intro}\n\n${cuerpo}\n\n\n${cierre}`
 }
 
-interface HermanoMin { id: string; nombre: string; telefono: string }
+interface HermanoMin { id: string; nombre: string; telefono: string; presentado: boolean }
 interface SemanaMin {
   id: string; fecha: string
   titulos: Titulos
@@ -199,11 +206,12 @@ async function leerConfig(sb: SupabaseClient, congId: string): Promise<ConfigCon
 }
 
 async function leerHermanos(sb: SupabaseClient, congId: string): Promise<HermanoMin[]> {
-  const { data } = await sb.from('hermanos').select('id, nombre, telefono').eq('congregation_id', congId)
+  const { data } = await sb.from('hermanos').select('id, nombre, telefono, recordatorio_presentado').eq('congregation_id', congId)
   return (data ?? []).map(r => ({
     id: r.id as string,
     nombre: r.nombre as string,
     telefono: ((r.telefono as string | null) ?? '').trim(),
+    presentado: (r.recordatorio_presentado as boolean | null) === true,
   }))
 }
 
@@ -300,6 +308,7 @@ export async function armarMensajesRecordatorio(
 
   const mensajes: MensajeBot[] = []
   const sinTelefono: string[] = []
+  const idsAPresentar: string[] = [] // hermanos que reciben la presentación esta vez
   for (const hermanoId of idsConParte) {
     const h = hermanoPorId.get(hermanoId)
     if (!h) continue
@@ -310,7 +319,19 @@ export async function armarMensajesRecordatorio(
     if (pFDS) bloques.push({ etiquetaReunion: 'Reunión de fin de semana', fecha: fechaFDS, partes: pFDS })
     if (bloques.length === 0) continue
     if (!h.telefono) { sinTelefono.push(h.nombre); continue }
+    // Primera vez que se le escribe: mensaje de presentación del bot ANTES del recordatorio.
+    if (!h.presentado) {
+      mensajes.push({ telefono: h.telefono, nombre: h.nombre, texto: textoPresentacion(h.nombre) })
+      idsAPresentar.push(h.id)
+    }
     mensajes.push({ telefono: h.telefono, nombre: h.nombre, texto: construirTexto(h.nombre, bloques, config.contacto) })
+  }
+
+  // Marcar como "ya presentados" para que la próxima vez reciban solo el recordatorio.
+  if (idsAPresentar.length > 0) {
+    try {
+      await sb.from('hermanos').update({ recordatorio_presentado: true }).in('id', idsAPresentar).eq('congregation_id', congId)
+    } catch { /* si falla el marcado, no rompemos el envío */ }
   }
 
   return {
